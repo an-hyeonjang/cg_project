@@ -72,13 +72,13 @@ void render()
 
 	// bind vertex attributes to your shader program
 	cg_bind_vertex_attributes( program );
-
 	// render two circles: trigger shader program to process vertex data
 	for( auto& c : circles )
 	{
-		// per-circle update
 		c.update(t);
-
+		wallCollision(c, circles);
+		//if (c.crash) { uint j = c.c_circle_index; calculate(c, circles.at(j)); c.crash = FALSE; }
+	
 		// update per-circle uniforms
 		GLint uloc;
 		uloc = glGetUniformLocation( program, "solid_color" );		if(uloc>-1) glUniform4fv( uloc, 1, c.color );	// pointer version
@@ -88,7 +88,6 @@ void render()
 		if(b_index_buffer)	glDrawElements( GL_TRIANGLES, NUM_TESS*3, GL_UNSIGNED_INT, nullptr );
 		else				glDrawArrays( GL_TRIANGLES, 0, NUM_TESS*3 ); // NUM_TESS = N
 	}
-
 	// swap front and back buffers, and display to screen
 	glfwSwapBuffers( window );
 }

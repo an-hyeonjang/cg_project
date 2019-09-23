@@ -6,7 +6,9 @@
 
 struct circle_t
 {
-	uint	collision[3] = { 0, FALSE, 0 }; // c1, c2, check collsion
+	uint	index;
+	bool	crash;
+	uint	c_circle_index; // index, if collision, with which?
 	vec2	center=vec2(0);		// 2D position for translation
 	float	radius=1.0f;		// radius
 	vec4	color;				// RGBA color in [0,1]
@@ -14,34 +16,52 @@ struct circle_t
 	vec2	velocity = vec2(0.1f);
 	float	mass = (float)pow(radius, 2.0) * PI;
 
-	std::vector<circle_t>* parent;
-
 	mat4	model_matrix;		// modeling transformation
 	void	update( float t ); 
 };
 
-float randnum(void) { return (float)(rand() - RAND_MAX / 2) / (RAND_MAX/2); }
-float dis(vec2 a, vec2 b) { return (float)sqrt((pow((a.x - b.x), 2.0) + pow((a.y - b.y), 2.0))); }
-
-
-inline void caculate() {};
-bool checkCollision(circle_t a, circle_t b) { if (dis(a.center, b.center) <= a.radius + b.radius) return TRUE; else return FALSE; }
-void checkCollision(std::vector<circle_t>& circles)
+struct wall
 {
-	printf("size:%u\n", circles.size());
-	uint i, j;
-	for (j = 0; j < circles.size(); j++)
+	vec2	center;
+	vec2	velocity = vec2(0.0f);
+	float	mass;
+};
+
+
+float randnum() { return (float)(rand() - RAND_MAX/2) / (RAND_MAX/2); }
+
+inline void calculate(circle_t& v1, wall& v2)
+{
+	v1.velocity = v1.velocity - 2 * v2.mass / (v1.mass + v2.mass) * ((v1.velocity - v2.velocity) * (v1.center - v2.center)) / length2(v1.center - v2.center) * (v1.center - v2.center);
+};
+
+inline void calculate(circle_t& v1, circle_t& v2) 
+{
+	v1.velocity = v1.velocity - 2 * v2.mass / (v1.mass + v2.mass) * ((v1.velocity - v2.velocity) * (v1.center - v2.center)) / length2(v1.center - v2.center) * (v1.center - v2.center);
+	v2.velocity = v2.velocity - 2 * v2.mass / (v1.mass + v2.mass) * ((v2.velocity - v1.velocity) * (v2.center - v1.center)) / length2(v2.center - v1.center) * (v2.center - v1.center);
+};
+
+
+inline void checkCollision(circle_t& c, std::vector<circle_t>& circles)
+{
+	/*for (uint i = c.index; i < circles.size(); i++) 
+	{ 
+		if (length(c.center - circles[i].center) <= c.radius + circles[i].radius) { c.crash = TRUE; c.c_circle_index = i; } 
+	}*/
+}
+inline void wallCollision(circle_t& c, std::vector<circle_t>& circles)
+{
+	wall right, left, up, down;
+	right = { vec2(1.5f, c.center.y), vec2(0.0f), 10.0f };
+	left = { vec2(-1.5f, c.center.y), vec2(0.0f), 10.0f };
+	up = { vec2(c.center.x, 1.0f), vec2(0.0f), 10.0f };
+	down = { vec2(c.center.x, -1.0f), vec2(0.0f), 10.0f };
+	for (uint i = c.index; i < circles.size(); i++)
 	{
-		for (i = j + 1; i < circles.size(); i++)
-		{
-			if (dis(circles[i].center, circles[j].center) <= circles[i].radius + circles[j].radius)
-			{
-				circles[i].collision[1] = TRUE;
-				circles[i].collision[2] = j;
-				printf("between%i, %i, dis:%f, radiss:%f, count:%i\n", i, j, dis(circles[i].center, circles[j].center), circles[i].radius + circles[j].radius, count);
-				printf("circle %u with %u, collsion\n", circles[i].collision[0], circles[i].collision[2]);
-			}
-		}
+		if (length(c.center - right.center) <= c.radius) { calculate(c, right); }
+		if (length(c.center - left.center) <= c.radius) { calculate(c, left); }
+		if (length(c.center - up.center) <= c.radius) { calculate(c, up); }
+		if (length(c.center - down.center) <= c.radius) { calculate(c, down); }
 	}
 }
 
@@ -51,32 +71,17 @@ inline std::vector<circle_t> create_circles()
 	std::vector<circle_t> circles;
 	circle_t c;
 	
-	for (uint i = 0; i < 5; i++)
+	for (uint i = 0; i < 10; i++)
 	{
-		c = { {i , FALSE, 0 }, vec2(randnum(),randnum()),abs(randnum() / 2.0f),vec4(abs(randnum()),abs(randnum()),abs(randnum()),1.0f), vec2(randnum(),randnum()) };
+		c = { i , FALSE, 0 , vec2(randnum(), randnum()),abs(randnum() / 4.0f), vec4(abs(randnum()),abs(randnum()),abs(randnum()),1.0f), vec2(randnum(),randnum()) };
 		circles.emplace_back(c);
-		c.parent = &circles;
-
-		std::cout << c.parent << std::endl;
 	}
-	for (auto k : circles) { std::cout << c.parent << std::endl; };
-	checkCollision(circles);
-	for (auto k : circles) { std::cout << k.parent << " " << k.collision[0] << k.collision[1] << k.collision[2] << std::endl; }
 	return circles;
 }
 
 inline void circle_t::update(float t)
 {
-	vec2 center_u = velocity * t + center;
-
-	if (collision[1]) 
-	{
-		uint j = collision[2];
-		std::cout << collision[0] << " " << parent << std::endl;
-		collision[1] = FALSE; 
-	}
-	else std::cout << collision[0] << " " << collision[2] << " not collsion" << std::endl;
-
+	center += velocity/255 ;
 
 	// these transformations will be explained in later transformation lecture
 	mat4 scale_matrix =
@@ -102,7 +107,6 @@ inline void circle_t::update(float t)
 		0, 0, 1, 0,
 		0, 0, 0, 1
 	};
-	
 	model_matrix = translate_matrix*rotation_matrix*scale_matrix;
 }
 
