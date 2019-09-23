@@ -31,6 +31,9 @@
     <ClInclude Include="circle.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="collision.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\bin\shaders\circ.frag">

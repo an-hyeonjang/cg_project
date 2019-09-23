@@ -1,6 +1,6 @@
 #include "cgmath.h"			// slee's simple math library
 #include "cgut.h"			// slee's OpenGL utility
-#include "circle.h"			// circle class definition
+#include "collision.h"		// calculate elastic collision
 
 #include <cstdlib>			//random generator
 
@@ -33,6 +33,7 @@ mat4	aspect_matrix;					// aspect ratio correction for non-square window
 bool	b_index_buffer = true;			// use index buffering?
 bool	b_wireframe = false;
 auto	circles = std::move(create_circles());
+auto	window_wall = std::move(create_walls());
 
 //*******************************************************************
 // holder of vertices and indices of a unit circle
@@ -76,7 +77,7 @@ void render()
 	for( auto& c : circles )
 	{
 		c.update(t);
-		wallCollision(c, circles);
+		wall_Collision(c, circles, window_wall);
 		//if (c.crash) { uint j = c.c_circle_index; calculate(c, circles.at(j)); c.crash = FALSE; }
 	
 		// update per-circle uniforms
