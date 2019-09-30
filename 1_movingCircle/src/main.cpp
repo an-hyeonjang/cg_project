@@ -12,7 +12,7 @@ static const char*	vert_shader_path = "../bin/shaders/circ.vert";
 static const char*	frag_shader_path = "../bin/shaders/circ.frag";
 static const uint	MIN_TESS = 3;		// minimum tessellation factor (down to a triangle)
 static const uint	MAX_TESS = 256;		// maximum tessellation factor (up to 256 triangles)
-uint				NUM_TESS = 128;		// initial tessellation factor of the circle as a polygon
+uint				NUM_TESS = 64;		// initial tessellation factor of the circle as a polygon
 
 //*******************************************************************
 // window objects
@@ -74,12 +74,11 @@ void render()
 	// bind vertex attributes to your shader program
 	cg_bind_vertex_attributes( program );
 	// render two circles: trigger shader program to process vertex data
-	for( auto& c : circles )
-	{
-		c.update(t);
-		wall_Collision(c, circles, window_wall);
-		//if (c.crash) { uint j = c.c_circle_index; calculate(c, circles.at(j)); c.crash = FALSE; }
-	
+	for (auto& c : circles) 
+	{ 
+		c.update(t); 
+		wall_Collision(c, window_wall);
+
 		// update per-circle uniforms
 		GLint uloc;
 		uloc = glGetUniformLocation( program, "solid_color" );		if(uloc>-1) glUniform4fv( uloc, 1, c.color );	// pointer version

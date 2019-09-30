@@ -2,20 +2,17 @@
 #ifndef __CIRCLE_H__
 #define __CIRCLE_H__
 
-
-float randnum() { return (float)(rand() - RAND_MAX / 2) / (RAND_MAX / 2); }
-
 struct circle_t
 {
 	uint	index;				// index
 	bool	crash;				// if it crashed
-	uint	c_circle_index;		// crashed circle index
+	uint	c_circle_index = 21;		// crashed circle index
 	vec2	center=vec2(0);		// 2D position for translation
 	float	radius=1.0f;		// radius
 	vec4	color;				// RGBA color in [0,1]
 
 	vec2	velocity = vec2(0.1f);
-	float	mass = (float)pow(radius, 2.0) * PI;
+	float	mass = radius;
 
 	mat4	model_matrix;		// modeling transformation
 	void	update( float t ); 
@@ -23,19 +20,41 @@ struct circle_t
 
 struct wall_t
 {
-	uint	position;		// counter clock-wise, 0_left 1_down 2_right 3_up
+	uint	position;
 	vec2	velocity = vec2(0.0f);
 	float	mass;
 };
+
+
+inline float randf() 
+{ 
+	return (float)std::rand()/RAND_MAX;	//return positive value
+}
+
+inline float randf(float m, float p)
+{
+	return m*randf() + p*randf();
+}
+
+inline float dis(circle_t x, circle_t y)
+{
+	return (x.center - y.center).length();
+}
 
 inline std::vector<circle_t> create_circles()
 {
 	std::vector<circle_t> circles;
 	circle_t c;
-	
-	for (uint i = 0; i < 10; i++)
+
+	for (uint k = 0; k < 1; k++)
 	{
-		c = { i , FALSE, 0 , vec2(randnum(), randnum()), abs(randnum() / 4.0f), vec4(abs(randnum()),abs(randnum()),abs(randnum()),1.0f), vec2(randnum(),randnum()) };
+		circle_t c, b;
+		c.index = k;
+		c.center = vec2(randf(-1.0f,1.0f), randf(-1.0f, 1.0f));
+		c.radius = randf()/5.0f; 
+		c.color = vec4(randf(), randf(), randf(), 1.0f);
+		c.velocity = vec2(randf(-1.0f,1.0f)/255.0f, randf(-1.0f,1.0f)/255.0f);
+
 		circles.emplace_back(c);
 	}
 	return circles;
@@ -47,7 +66,7 @@ inline std::vector<wall_t> create_walls()
 	wall_t wall;
 	for (uint i = 0; i < 4; i++)
 	{
-		wall = { i, vec2(0.0f), 10.0f };
+		wall = { i, vec2(0.0f), 10.0f};
 		window.emplace_back(wall);
 	}
 	return  window;
@@ -55,7 +74,7 @@ inline std::vector<wall_t> create_walls()
 
 inline void circle_t::update(float t)
 {
-	center += velocity/255 ;
+	center += velocity;
 
 	// these transformations will be explained in later transformation lecture
 	mat4 scale_matrix =
