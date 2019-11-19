@@ -22,26 +22,34 @@ ivec2		window_size = ivec2( 512, 512 );	// initial window size
 // OpenGL objects
 GLuint	program	= 0;				// ID holder for GPU program
 GLuint  vertex_buffer = 0;
-GLuint	fbo = 0;					// framebuffer objects
-GLuint	SRC = 0, HORZ=0, VERT=0;	// texture objects
+GLuint	fbo = 0, rbo = 0;					// framebuffer objects
+GLuint	SRC = 0, SEC = 0, THR = 0;
+GLuint	PASS_NUMBER = 0;	// texture objects
+
+struct camera
+{
+	vec3	eye = vec3(0.0f, 0.0f, -2.0f);
+	vec3	at = vec3(0);
+	vec3	up = vec3(0, 0.0f, 0);
+	mat4	view_matrix = mat4::look_at(eye, at, up);
+
+	float	fovy = PI / 4.0f; // must be in radian
+	float	aspect_ratio;
+	float	dnear = 0.1f;
+	float	dfar = 100.0f;
+	mat4	projection_matrix;
+};
 
 //*******************************************************************
 // global variables
 int		frame=0;	// index of rendering frames
 ivec2	image_size;
-vec2	sigma = 0.5f;
 struct { bool left=false, right=false, up=false, down=false; operator bool() const { return left||right||up||down;} } b;
+camera	cam;
 
 //*******************************************************************
 void update()
 {
-	// do not use "else if" to enable key combination
-	if(b.left)	sigma.x = clamp( sigma.x-0.5f, 0.5f, 40.0f );
-	if(b.right)	sigma.x = clamp( sigma.x+0.5f, 0.5f, 40.0f );
-	if(b.up)	sigma.y = clamp( sigma.y+0.5f, 0.5f, 40.0f );
-	if(b.down)	sigma.y = clamp( sigma.y-0.5f, 0.5f, 40.0f );
-
-	if(b) printf( "blur kernel size = (% 6.1f, % 6.1f)\r", sigma.x, sigma.y );	
 }
 
 void draw_quad()
@@ -58,27 +66,49 @@ void draw_quad()
 
 void render()
 {
-	// separable Gaussian filtering
+	float t = float(glfwGetTime());
 	glUseProgram( program );
+	cam.aspect_ratio = window_size.x/float(window_size.y);
+	cam.projection_matrix = mat4::perspective(cam.fovy, cam.aspect_ratio, cam.dnear, cam.dfar);
 	
+	mat4 rotate_ = mat4::rotate(vec3(0,0,1), PI/4*t);
+	cam.view_matrix = mat4::translate(vec3(0, 0, -3)) * mat4::rotate(vec3(1, 0, 0), -PI / 4);
+
+	PASS_NUMBER = 1;
+	glUniform1i(glGetUniformLocation(program, "pass_n"), PASS_NUMBER);
+
 	// horizontal blur phase using render-to-texture
 	glBindFramebuffer( GL_FRAMEBUFFER, fbo );												// bind frame buffer object
-	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, HORZ, 0 );	// attach texture to frame buffer object
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, SEC, 0 );	// attach texture to frame buffer object
 	glUniform1i( glGetUniformLocation( program, "TEX"), 0 );
 	glBindTexture( GL_TEXTURE_2D, SRC );
-	glUniform1f( glGetUniformLocation( program, "sigma" ), sigma.x );
-	glUniform2fv( glGetUniformLocation( program, "texel_offset" ), 1, vec2(1.0f/image_size.x,0) );
+	glUniform2fv( glGetUniformLocation( program, "texel_offset" ), 1, vec2(1.0f/image_size.x, 1.0f / image_size.y) );
 	draw_quad();
 
-	// vertical blur phase and display directly
-	glBindFramebuffer( GL_FRAMEBUFFER, 0 );													// unbind frame buffer object: render to the default frame buffer
-	glFramebufferTexture( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 0, 0 );						// detach texture from frame buffer object
-	glUniform1i( glGetUniformLocation( program, "TEX"), 0 );
-	glBindTexture( GL_TEXTURE_2D, HORZ );
-	glUniform1f( glGetUniformLocation( program, "sigma" ), sigma.y );
-	glUniform2fv( glGetUniformLocation( program, "texel_offset" ), 1, vec2(0,1.0f/image_size.y) );
+	PASS_NUMBER = 2;
+	glUniform1i(glGetUniformLocation(program, "pass_n"), PASS_NUMBER);
+
+	glUniformMatrix4fv(glGetUniformLocation(program, "view"), 1, GL_TRUE, cam.view_matrix);
+	glUniformMatrix4fv(glGetUniformLocation(program, "projection"), 1, GL_TRUE, cam.projection_matrix);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, rbo);												// bind frame buffer object
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, THR, 0);	// attach texture to frame buffer object
+	glUniform1i(glGetUniformLocation(program, "TEX"), 0);
+	glBindTexture(GL_TEXTURE_2D, SEC);
+	glUniform2fv(glGetUniformLocation(program, "texel_offset"), 1, vec2(1.0f / image_size.x, 1.0f / image_size.y));
 	draw_quad();
-	
+
+	PASS_NUMBER = 3;
+	glUniform1i(glGetUniformLocation(program, "pass_n"), PASS_NUMBER);
+
+	glUniformMatrix4fv(glGetUniformLocation(program, "rotate"), 1, GL_TRUE, rotate_);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);													// unbind frame buffer object: render to the default frame buffer
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 0, 0);						// detach texture from frame buffer object
+	glUniform1i(glGetUniformLocation(program, "TEX"), 0);
+	glBindTexture(GL_TEXTURE_2D, THR);
+	glUniform2fv(glGetUniformLocation(program, "texel_offset"), 1, vec2(1.0f / image_size.x, 1.0f / image_size.y));
+	draw_quad();
+
 	// read-back: uncomment this when you need read back the frame buffer
 	//static uchar* buffer = (uchar*) malloc( image_size.x*image_size.y*3 );
 	//glReadPixels( 0, 0, image_size.x, image_size.y, GL_RGB, GL_UNSIGNED_BYTE, buffer );
@@ -139,25 +169,28 @@ void motion( GLFWwindow* window, double x, double y )
 
 void update_render_target_textures( int width, int height )
 {
-	if(HORZ) glDeleteTextures( 1, &HORZ );
-	if(VERT) glDeleteTextures( 1, &VERT );
+	if(SEC) glDeleteTextures( 1, &SEC );
+	if (THR) glDeleteTextures(1, &THR);
 
+	
 	// since we are using render-to-texture, we resize the textures by the window size
-	glGenTextures( 1, &HORZ);
-	glBindTexture( GL_TEXTURE_2D, HORZ );
+	glGenTextures( 1, &SEC);
+	glBindTexture( GL_TEXTURE_2D, SEC );
 	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB8 /* GL_RGB for legacy GL */, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	
+	glGenTextures(1, &THR);
+	glBindTexture(GL_TEXTURE_2D,THR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8 /* GL_RGB for legacy GL */, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-	glGenTextures( 1, &VERT);
-	glBindTexture( GL_TEXTURE_2D, VERT );
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB8 /* GL_RGB for legacy GL */, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+
 }
 
 bool user_init()
@@ -197,6 +230,10 @@ bool user_init()
 	glGenFramebuffers( 1, &fbo );
 	glBindFramebuffer( GL_FRAMEBUFFER, fbo );
 	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+
+	glGenFramebuffers(1, &rbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, rbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	
 	// create a src texture (lena texture)
 	glGenTextures( 1, &SRC );
@@ -244,7 +281,7 @@ int main( int argc, char* argv[] )
 	{
 		glfwPollEvents();	// polling and processing of events
 		update();			// per-frame update
-		render();			// per-frame render
+		render();
 	}
 	
 	// normal termination

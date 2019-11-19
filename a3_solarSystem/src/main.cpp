@@ -100,7 +100,6 @@ void update()
 	cam.aspect_ratio = window_size.x/float(window_size.y);
 	cam.projection_matrix = mat4::perspective( cam.fovy, cam.aspect_ratio, cam.dnear, cam.dfar );
 
-
 	// update uniform variables in vertex/fragment shaders
 	GLint uloc;
 	uloc = glGetUniformLocation( program, "b_solid_color" );		if (uloc > -1) glUniform1i(uloc, b_solid_color);
