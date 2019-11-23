@@ -55,7 +55,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="background.h" />
     <ClCompile Include="GL\glad\glad.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="render.cpp" />
@@ -71,6 +70,8 @@
     <ClInclude Include="quad.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\bin\shaders\cg.frag" />
+    <None Include="..\bin\shaders\cg.vert" />
     <None Include="..\bin\shaders\circ.frag" />
     <None Include="..\bin\shaders\circ.vert" />
   </ItemGroup>

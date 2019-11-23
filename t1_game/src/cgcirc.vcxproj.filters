@@ -26,9 +26,6 @@
     <ClCompile Include="texture.h">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="background.h">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cgut.h">
@@ -58,6 +55,12 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\bin\shaders\circ.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\bin\shaders\cg.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\bin\shaders\cg.vert">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>
