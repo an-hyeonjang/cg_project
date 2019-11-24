@@ -1,6 +1,8 @@
 #include "cgmath.h"			// slee's simple math library
 #include "cgut.h"			// slee's OpenGL utility
 
+#include "game_object.h"
+
 //*******************************************************************
 // global constants
 static const char* window_name = "cg-invader";
@@ -11,7 +13,7 @@ static const char* image_path = "../bin/images/down.png";
 //*******************************************************************
 // window objects
 GLFWwindow* window = nullptr;
-ivec2		window_size = ivec2(512, 512);	// initial window size
+ivec2		window_size = ivec2(1024, 512);	// initial window size
 
 //*******************************************************************
 // OpenGL objects
@@ -26,10 +28,14 @@ GLuint	SRC = 0;
 // global variables
 int		frame = 0;						// index of rendering frames
 ivec2	image_size;
+float	move = 0.5f;
 
 //*******************************************************************
+player quad(0.5f);
+Texture tex;
+
 void update()
-{/*
+{
 	float aspect = window_size.x / float(window_size.y);
 	mat4 aspect_matrix =
 	{
@@ -38,24 +44,16 @@ void update()
 		0, 0, 1, 0,
 		0, 0, 0, 1
 	};
-	GLuint uloc;
-	uloc = glGetUniformLocation(program, "aspect_matrix");	if (uloc > -1) glUniformMatrix4fv(uloc, 1, GL_TRUE, aspect_matrix);*/
+	glUniformMatrix4fv(glad_glGetUniformLocation(program, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
+	glUniformMatrix4fv(glGetUniformLocation(program, "model_matrix"), 1, GL_TRUE, quad.model_matrix);
 }
-void draw_quad()
-{
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	cg_bind_vertex_attributes(program);
-
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-}
 void render()
 {
 	glUseProgram(program);
-
-	glBindTexture(GL_TEXTURE_2D, SRC);
-	draw_quad();
-
+	
+	draw_quad(program, vertex_buffer, tex.texture[0]);
+	
 	glfwSwapBuffers(window);
 }
 
@@ -66,14 +64,8 @@ void reshape(GLFWwindow* window, int width, int height)
 }
 
 void print_help()
-{
-	printf("[help]\n");
-	printf("- press ESC or 'q' to terminate the program\n");
-	printf("- press F1 or 'h' to see help\n");
-	printf("- press 'd' to toggle between solid color and texture coordinates\n");
-	printf("- press 'i' to toggle between index buffering and simple vertex buffering\n");
-	printf("- press 'w' to toggle wireframe\n");
-	printf("\n");
+{	
+	printf("work\n");
 }
 
 void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -82,7 +74,24 @@ void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
 		if (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_Q)	glfwSetWindowShouldClose(window, GL_TRUE);
 		else if (key == GLFW_KEY_H || key == GLFW_KEY_F1)	print_help();
-		else if (key == GLFW_KEY_KP_ADD || (key == GLFW_KEY_EQUAL && (mods & GLFW_MOD_SHIFT))) {}
+
+		if (key == GLFW_KEY_RIGHT)
+		{
+			quad.update(vec3(move,0,0));
+		}
+		if (key == GLFW_KEY_UP)
+		{
+			quad.update(vec3(0,move,0));
+		}
+		if (key == GLFW_KEY_DOWN)
+		{
+			quad.update(vec3(0,-move,0));
+		}
+		if (key == GLFW_KEY_LEFT)
+		{
+			quad.update(vec3(-move,0,0));
+		}
+
 	}
 }
 
@@ -113,38 +122,15 @@ bool user_init()
 	glEnable(GL_TEXTURE_2D);
 	glActiveTexture(GL_TEXTURE0);
 
-	// load and flip an image
-	int comp; int& width = image_size.x, & height = image_size.y;
-	unsigned char* pimage0 = stbi_load(image_path, &width, &height, &comp, 3); if (comp == 1) comp = 3; /* convert 1-channel to 3-channel image */
-	int stride0 = width * comp, stride1 = (stride0 + 3) & (~3);	// 4-byte aligned stride
-	unsigned char* pimage = (unsigned char*)malloc(sizeof(unsigned char) * stride1 * height);
-	for (int y = 0; y < height; y++) memcpy(pimage + (height - 1 - y) * stride1, pimage0 + y * stride0, stride0); // vertical flip
-	stbi_image_free(pimage0); // release the original image
+	std::vector<vertex> vertices;
+	vertices = update_quad_vertex(vertices);
 
-	// create corners and vertices
-	vertex corners[4];
-	corners[0].pos = vec3(-1.0f, -1.0f, 0.0f);	corners[0].tex = vec2(0.0f, 0.0f);
-	corners[1].pos = vec3(+1.0f, -1.0f, 0.0f);	corners[1].tex = vec2(1.0f, 0.0f);
-	corners[2].pos = vec3(+1.0f, +1.0f, 0.0f);	corners[2].tex = vec2(1.0f, 1.0f);
-	corners[3].pos = vec3(-1.0f, +1.0f, 0.0f);	corners[3].tex = vec2(0.0f, 1.0f);
-	vertex vertices[6] = { corners[0], corners[1], corners[2], corners[0], corners[2], corners[3] };
-
-	// generation of vertex buffer is the same, but use vertices instead of corners
 	glGenBuffers(1, &vertex_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex)*vertices.size(), &vertices[0], GL_STATIC_DRAW);
 
-	glGenTextures(1, &SRC);
-	glBindTexture(GL_TEXTURE_2D, SRC);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8 /* GL_RGB for legacy GL */, image_size.x, image_size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, pimage);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-	// release the new image
-	free(pimage);
-
+	tex.load(image_path);
+	
 	return true;
 }
 

@@ -31,7 +31,7 @@ struct trackball
 		vec3 p1 = vec3(m.x-m0.x, m0.y-m.y,0);	// displacement with vertical swap
 		if (!b_tracking || length(p1) < 0.0001f) return view_matrix0;			// ignore subtle movement
 		p1 *= scale;												// apply rotation scale
-		p1 = vec3(p1.x,p1.y,sqrtf(max(0,1.0f-length2(p1)))).normalize();	// back-project z=0 onto the unit sphere
+		p1 = vec3(p1.x,p1.y,sqrtf(max(0,1.0f-length2(p1)))).normalize();	// back-project z=0 onto the unit sphere 
 
 		// find rotation axis and angle
 		// - right-mult of mat3 = inverse view rotation to world

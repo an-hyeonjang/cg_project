@@ -49,6 +49,9 @@
     <ClInclude Include="circle.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="keyboard_input.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\bin\shaders\circ.frag">
