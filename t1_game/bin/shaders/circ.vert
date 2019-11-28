@@ -14,14 +14,11 @@ uniform mat4	model_matrix;	// 4x4 transformation matrix: explained later in the 
 uniform mat4	view_matrix;
 uniform mat4	projection_matrix;
 
-uniform int		pass_n;
-
 void main()
 {
 	vec4 wpos = model_matrix * vec4(position,1);
 	epos = view_matrix * wpos;
-	if(pass_n == 1) gl_Position = projection_matrix * epos;
-	if(pass_n == 2) gl_Position = vec4(position, 1);
+	gl_Position = projection_matrix * epos;
 
 	norm = normalize(mat3(view_matrix*model_matrix)*normal);
 	tc = texcoord;

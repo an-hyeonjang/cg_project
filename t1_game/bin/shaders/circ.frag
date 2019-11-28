@@ -16,8 +16,6 @@ uniform sampler2D TEX;
 uniform bool	shading;
 uniform bool	is_not_star;
 
-uniform int		pass_n; 
-
 vec4 phong( vec3 l, vec3 n, vec3 h, vec4 Kd )
 {
 	vec4 Ira = Ka*Ia;									// ambient reflection
@@ -45,11 +43,9 @@ void main()
 
 	vec4 Kd = texture2D( TEX, tc );
 	
-	if(pass_n == 1)
-	{
-		if(!is_not_star) fragColor = Kd;
-		else fragColor = phong(l, n, h, Kd);
-	}
-	if(pass_n == 2) fragColor = Kd;
+
+	if(!is_not_star) fragColor = Kd;
+	else fragColor = phong(l, n, h, Kd);
+
 }
 

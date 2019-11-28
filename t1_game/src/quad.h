@@ -4,33 +4,25 @@
 
 struct quad_t
 {
+	GLuint	vertex_buffer;
+	vertex	vertices[4];
 	vec2	center = vec2(0);		// 2D position for translation
 	float	scale = 1.0f;		// radius
 	mat4	model_matrix;		// modeling transformation
+	
 
-	// public functions
-	void	update(float t);
+	quad_t() 
+	{
+		vertices[0] = { vec3(-1,-1,0),vec3(0,0,1),vec2(0,0) };
+		vertices[1] = { vec3(1,-1,0),vec3(0,0,1),vec2(1,0) };
+		vertices[2] = { vec3(-1,1,0),vec3(0,0,1),vec2(0,1) };
+		vertices[3] = { vec3(1,1,0),vec3(0,0,1),vec2(1,1) };
+
+		glGenBuffers(1, &vertex_buffer);
+		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertex) * 4, &vertices[0], GL_STATIC_DRAW);
+	}
 };
-
-inline std::vector<quad_t> create_quads()
-{
-	std::vector<quad_t> quad;
-
-	quad_t q = { vec2(0), 0.5f };
-
-	quad.push_back(q);
-
-	return quad;
-}
-
-inline void quad_t::update(float t)
-{
-	mat4 scale_matrix = mat4::scale(scale);
-	mat4 rotation_matrix = mat4::rotate(vec3(0, 0, 1), t);
-	mat4 translate_matrix = mat4::translate(0);
-
-	model_matrix = translate_matrix * rotation_matrix * scale_matrix;
-}
 
 void update_quad_vertex(vertex* vertices)
 {
@@ -56,6 +48,21 @@ std::vector<vertex> update_quad_vertex(std::vector<vertex> vertices)
 
 	return vertices;
 }
+
+//void update_quad_vertex()
+//{
+//	static vertex vertices[] = 
+//	{ 
+//		{vec3(-1,-1,0),vec3(0,0,1),vec2(0,0)}, 
+//		{vec3(1,-1,0),vec3(0,0,1),vec2(1,0)}, 
+//		{vec3(-1,1,0),vec3(0,0,1),vec2(0,1)}, 
+//		{vec3(1,1,0),vec3(0,0,1),vec2(1,1)} 
+//	}; // strip ordering [0, 1, 3, 2]
+//
+//	glGenBuffers(1, &vertex_buffer);
+//	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+//	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex) * 4, &vertices[0], GL_STATIC_DRAW);
+//}
 
 void draw_quad(GLuint program, GLuint vertex_buffer, GLuint texture)
 {

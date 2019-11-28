@@ -8,7 +8,8 @@
 static const char* window_name = "cg-invader";
 static const char* vert_shader_path = "../bin/shaders/cg.vert";
 static const char* frag_shader_path = "../bin/shaders/cg.frag";
-static const char* image_path = "../bin/images/down.png";
+
+static const char* image_path = "../bin/images/mech-unit-export1.png";
 
 //*******************************************************************
 // window objects
@@ -21,8 +22,6 @@ GLuint	program = 0;	// ID holder for GPU program
 GLuint	vertex_buffer = 0;	// ID holder for vertex buffer
 GLuint	SRC = 0;
 
-#define STB_IMAGE_IMPLEMENTATION 
-#include "stb_image.h"
 
 //*******************************************************************
 // global variables
@@ -31,11 +30,43 @@ ivec2	image_size;
 float	move = 0.5f;
 
 //*******************************************************************
+// player attribute
 player quad(0.5f);
 Texture tex;
 
+bool user_init()
+{
+
+	// init GL states
+	glLineWidth(1.0f);
+	glClearColor(39 / 255.0f, 40 / 255.0f, 34 / 255.0f, 1.0f);	// set clear color
+	glEnable(GL_CULL_FACE);								// turn on backface culling
+	glEnable(GL_DEPTH_TEST);								// turn on depth tests
+
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE0);
+
+	tex.window_size = window_size;
+	tex.load(image_path);
+
+	static vertex vertices[] = { {vec3(-1,-1,0),vec3(0,0,1),vec2(0,0)}, {vec3(1,-1,0),vec3(0,0,1),vec2(1,0)}, {vec3(-1,1,0),vec3(0,0,1),vec2(0,1)}, {vec3(1,1,0),vec3(0,0,1),vec2(1,1)} }; // strip ordering [0, 1, 3, 2]
+
+	// generation of vertex buffer: use vertices as it is
+	glGenBuffers(1, &vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex) * 4, &vertices[0], GL_STATIC_DRAW);
+
+
+	return true;
+}
+
+
 void update()
 {
+	
 	float aspect = window_size.x / float(window_size.y);
 	mat4 aspect_matrix =
 	{
@@ -43,16 +74,19 @@ void update()
 		0, min(aspect,1.0f), 0, 0,
 		0, 0, 1, 0,
 		0, 0, 0, 1
-	};
+	};   
 	glUniformMatrix4fv(glad_glGetUniformLocation(program, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
 	glUniformMatrix4fv(glGetUniformLocation(program, "model_matrix"), 1, GL_TRUE, quad.model_matrix);
 }
 
 void render()
 {
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glUseProgram(program);
 	
-	draw_quad(program, vertex_buffer, tex.texture[0]);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+	cg_bind_vertex_attributes(program);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	
 	glfwSwapBuffers(window);
 }
@@ -108,31 +142,6 @@ void motion(GLFWwindow* window, double x, double y)
 {
 }
 
-bool user_init()
-{
-	// log hotkeys
-	print_help();
-
-	// init GL states
-	glLineWidth(1.0f);
-	glClearColor(39 / 255.0f, 40 / 255.0f, 34 / 255.0f, 1.0f);	// set clear color
-	glEnable(GL_CULL_FACE);								// turn on backface culling
-	glEnable(GL_DEPTH_TEST);								// turn on depth tests
-
-	glEnable(GL_TEXTURE_2D);
-	glActiveTexture(GL_TEXTURE0);
-
-	std::vector<vertex> vertices;
-	vertices = update_quad_vertex(vertices);
-
-	glGenBuffers(1, &vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex)*vertices.size(), &vertices[0], GL_STATIC_DRAW);
-
-	tex.load(image_path);
-	
-	return true;
-}
 
 void user_finalize()
 {

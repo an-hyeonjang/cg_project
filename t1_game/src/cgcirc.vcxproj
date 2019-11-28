@@ -65,8 +65,7 @@
     <ClInclude Include="cgut.h" />
     <ClInclude Include="circle.h" />
     <ClInclude Include="game_object.h" />
-    <ClInclude Include="keyboard_input.h" />
-    <ClInclude Include="sphere.h" />
+    <ClInclude Include="stb_image.h" />
     <ClInclude Include="trackball.h" />
     <ClInclude Include="quad.h" />
   </ItemGroup>

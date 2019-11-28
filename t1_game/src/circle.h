@@ -2,7 +2,6 @@
 #ifndef __CIRCLE_H_
 #define __CIRCLE_H_
 
-
 std::vector<vertex> create_circle_vertices(uint N)
 {
 	std::vector<vertex> v = { { vec3(0), vec3(0,0,-1.0f), vec2(0.5f) } }; // origin
