@@ -51,7 +51,7 @@ ivec2		window_size = ivec2( 720, 480 );	// initial window size
 //*************************************
 // OpenGL objects
 GLuint	program	= 0;	// ID holder for GPU program
-GLuint	stencil = 0;
+GLuint	stencil = 1;
 
 //*************************************
 // global variables
@@ -116,9 +116,12 @@ void render_0()
 
 	// notify GL that we use our own program and buffers
 	glUseProgram(program);
+
 	if(pMesh&&pMesh->vertex_buffer)	glBindBuffer(GL_ARRAY_BUFFER, pMesh->vertex_buffer);
 	if(pMesh&&pMesh->index_buffer)	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pMesh->index_buffer);
-	
+
+	update();
+
 	// bind vertex attributes to your shader program
 	cg_bind_vertex_attributes( program );
 	
@@ -130,16 +133,21 @@ void render_0()
 
 void stencil_render_linewidth()
 {
-	update();
-
 	glStencilFunc(GL_NOTEQUAL, 1, -1);
-	glLineWidth(1);
+	glLineWidth(5);
 
 	glUseProgram(stencil);
+
 	if (pMesh && pMesh->vertex_buffer)	glBindBuffer(GL_ARRAY_BUFFER, pMesh->vertex_buffer);
 	if (pMesh && pMesh->index_buffer)	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pMesh->index_buffer);
 
 	float t = float(glfwGetTime());
+	float scale = 1.0f + float(cos(t * 1.5f)) * 0.05f;
+	mat4 model_matrix = mat4::scale(scale, scale, scale);
+
+	glUniformMatrix4fv(glGetUniformLocation(stencil, "view_matrix"), 1, GL_TRUE, cam.view_matrix);
+	glUniformMatrix4fv(glGetUniformLocation(stencil, "projection_matrix"), 1, GL_TRUE, cam.projection_matrix);
+	glUniformMatrix4fv(glGetUniformLocation(stencil, "model_matrix"), 1, GL_TRUE, model_matrix);
 	glUniform1f(glGetUniformLocation(stencil, "t"), cos(t * 3.0f));
 
 	cg_bind_vertex_attributes(stencil);
@@ -153,39 +161,44 @@ void render_1()
 {
 	// clear screen (with background color) and clear depth buffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	glStencilFunc(GL_ALWAYS, 1, 1);
-	glStencilMask(1);
+	glStencilFunc(GL_ALWAYS, 1, 0xFF);
+	glStencilMask(0xFF);
 
 	// notify GL that we use our own program and buffers
 	glUseProgram(program);
+
 	if (pMesh && pMesh->vertex_buffer)	glBindBuffer(GL_ARRAY_BUFFER, pMesh->vertex_buffer);
 	if (pMesh && pMesh->index_buffer)	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pMesh->index_buffer);
+
+	update();
 
 	// bind vertex attributes to your shader program
 	cg_bind_vertex_attributes(program);
 
 	// render vertices: trigger shader programs to process vertex data
 	glDrawElements(GL_TRIANGLES, pMesh->index_list.size(), GL_UNSIGNED_INT, nullptr);
+
 	if (stencil_option) stencil_render_scale();
 	else glfwSwapBuffers(window);
 }
 
 void stencil_render_scale()
 {
-	update();
-
-	glStencilFunc(GL_NOTEQUAL, 1, 1);
-	glStencilMask(-1);
+	glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+	glStencilMask(0x00);
 	glDisable(GL_DEPTH_TEST);
 
 	glUseProgram(stencil);
+	
 	if (pMesh && pMesh->vertex_buffer)	glBindBuffer(GL_ARRAY_BUFFER, pMesh->vertex_buffer);
 	if (pMesh && pMesh->index_buffer)	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pMesh->index_buffer);
 
 	float t = float(glfwGetTime());
-	float scale = 1.07f + float(cos(t * 1.5f)) * 0.05f;
+	float scale = 1.1f + float(cos(t * 1.5f)) * 0.05f;
 	mat4 model_matrix = mat4::scale(scale, scale, scale);
 
+	glUniformMatrix4fv(glGetUniformLocation(stencil, "view_matrix"), 1, GL_TRUE, cam.view_matrix);
+	glUniformMatrix4fv(glGetUniformLocation(stencil, "projection_matrix"), 1, GL_TRUE, cam.projection_matrix);
 	glUniformMatrix4fv(glGetUniformLocation(stencil, "model_matrix"), 1, GL_TRUE, model_matrix);
 	glUniform1f(glGetUniformLocation(stencil, "t"), cos(t * 3.0f));
 
@@ -320,8 +333,7 @@ int main( int argc, char* argv[] )
 	for (frame = 0; !glfwWindowShouldClose(window); frame++)
 	{
 		glfwPollEvents();	// polling and processing of events
-		update();			// per-frame update
-		if (!stencil_methods) render_0();			// per-frame render
+		if (!stencil_methods) render_0();
 		else render_1();
 	}
 	
