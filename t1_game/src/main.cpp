@@ -2,6 +2,21 @@
 #include "cgut.h"			// slee's OpenGL utility
 
 #include "game_object.h"
+#include "collision.h"
+
+//*******************************************************************
+// forward declarations for freetype text
+void text_init();
+void render_text(std::string text, GLint x, GLint y, GLfloat scale, vec4 color);
+
+enum game_state
+{
+	GAME_MENU,
+	GAME_STAGE0,
+	GAME_STAGE1,
+	GAME_WIN,
+	GAME_FAIL
+};
 
 //*******************************************************************
 // global constants
@@ -25,13 +40,22 @@ GLuint	SRC = 0;
 // global variables
 int		frame = 0;						// index of rendering frames
 ivec2	image_size;
-float	move = 0.3f;
+float	move = 0.1f;
+
+
+//******************************************************************
+// game_menu
+background_t	menu_background_image;
 
 //*******************************************************************
 // player attribute
-player_t	player(0.5f);
-map_t		map;
+background_t	background;
+uint	stage;
+player_t	player;
+std::vector<creature_t>	creatures;
 
+//*******************************************************************
+// stage 1
 
 bool user_init()
 {
@@ -43,9 +67,24 @@ bool user_init()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	stage = 0;
+
+	text_init();
+
+	//game_menu
+	menu_background_image.init();
+
+	//stage0
 	game_object_init();
-	map.init(window_size);
-	player.init(window_size);
+
+	background.init();
+	player.init();
+
+	//stage2
+
+	creature_t creat;
+	creatures.push_back(creat);
+	for(auto& c: creatures) c.init();
 
 	return true;
 }
@@ -53,18 +92,37 @@ bool user_init()
 void update()
 {
 	game_update(window_size);
-	//map.update();
-	//quad.update();
+
+	for (auto& c : creatures)
+		change_state(player, c);
 }
 
 void render()
 {
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	float t = (float)sin(glfwGetTime());
 	
-	player.render();
-	map.render();
-	
+	background.render();
+	player.render(t);
+	for (auto& c : creatures) c.render();
+
 	glfwSwapBuffers(window);
 }
+
+void menu_render()
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	menu_background_image.render();
+
+	render_text(window_name, 100, 100, 1.0f, vec4(0.5f, 0.8f, 0.2f, 1.0f));
+	render_text("I love Computer Graphics!", 100, 125, 0.5f, vec4(0.7f, 0.4f, 0.1f, 0.8f));
+	render_text("Blinking text here", 100, 155, 0.6f, vec4(0.5f, 0.7f, 0.7f, 1.0f));
+
+	glfwSwapBuffers(window);
+}
+
 
 void reshape(GLFWwindow* window, int width, int height)
 {
@@ -79,25 +137,36 @@ void print_help()
 
 void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+	player.control(key, action);
 	if (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_Q)	glfwSetWindowShouldClose(window, GL_TRUE);
 		else if (key == GLFW_KEY_H || key == GLFW_KEY_F1)	print_help();
 
-		if (key == GLFW_KEY_RIGHT)
-		{
-			player.moving(vec3(move,0,0));
-		}
-		if (key == GLFW_KEY_UP)
-		{
-			player.moving(vec3(0,move,0));
-		}
-		if (key == GLFW_KEY_DOWN)
-		{
-			player.moving(vec3(0,-move,0));
-		}
-		if (key == GLFW_KEY_LEFT)
-		{
-			player.moving(vec3(-move,0,0));
-		}
+	if (key == GLFW_KEY_RIGHT)
+	{
+		player.moving(vec3(move,0,0));
+	}
+	if (key == GLFW_KEY_UP)
+	{
+		player.moving(vec3(0,move,0));
+	}
+	if (key == GLFW_KEY_DOWN)
+	{
+		player.moving(vec3(0,-move,0));
+	}
+	if (key == GLFW_KEY_LEFT)
+	{
+		player.moving(vec3(-move,0,0));
+	}
+	if (key == GLFW_KEY_Z)
+	{
+		if(action == GLFW_PRESS) player.hit_on = 1;
+		else if (action == GLFW_RELEASE) player.hit_on = 0;
+	}
+	if (key == GLFW_KEY_SPACE)
+	{
+		stage %= game_state();
+		if (action == GLFW_PRESS) stage += 1;
+	}
 }
 
 void mouse(GLFWwindow* window, int button, int action, int mods)
@@ -140,9 +209,27 @@ int main(int argc, char* argv[])
 	// enters rendering/event loop
 	for (frame = 0; !glfwWindowShouldClose(window); frame++)
 	{
-		glfwPollEvents();	// polling and processing of events
-		update();
-		render();			// per-frame render
+		switch (stage)
+		{
+		case GAME_MENU:
+			glfwPollEvents();
+			menu_render();
+			break;
+		case GAME_STAGE0:
+			glfwPollEvents();	// polling and processing of events
+			update();
+			render();
+			break;
+		case GAME_STAGE1:
+			glfwPollEvents();	// polling and processing of events
+			update();
+			render();
+			break;
+		case GAME_WIN:
+			break;
+		case GAME_FAIL:
+			break;
+		}			// per-frame render
 	}
 
 	// normal termination

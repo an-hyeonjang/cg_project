@@ -57,11 +57,12 @@
   <ItemGroup>
     <ClCompile Include="GL\glad\glad.c" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="text.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cgmath.h" />
     <ClInclude Include="cgut.h" />
-    <ClInclude Include="circle.h" />
+    <ClInclude Include="collision.h" />
     <ClInclude Include="game_object.h" />
     <ClInclude Include="quad.h" />
     <ClInclude Include="stb_image.h" />
@@ -72,6 +73,8 @@
     <None Include="..\bin\shaders\cg.vert" />
     <None Include="..\bin\shaders\circ.frag" />
     <None Include="..\bin\shaders\circ.vert" />
+    <None Include="..\bin\shaders\text.frag" />
+    <None Include="..\bin\shaders\text.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
