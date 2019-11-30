@@ -13,6 +13,9 @@ uniform mat4	aspect_matrix;
 
 void main()
 {
-	gl_Position = vec4(position, 1);
+	gl_Position = aspect_matrix * model_matrix * vec4(position, 1);
+
+	norm = normal;
+
 	tc = texcoord;
 }

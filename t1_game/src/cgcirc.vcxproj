@@ -62,11 +62,15 @@
   <ItemGroup>
     <ClInclude Include="cgmath.h" />
     <ClInclude Include="cgut.h" />
-    <ClInclude Include="collision.h" />
+    <ClInclude Include="circle.h" />
+    <ClInclude Include="simple_math.h" />
+    <ClInclude Include="game_level.h" />
     <ClInclude Include="game_object.h" />
     <ClInclude Include="quad.h" />
+    <ClInclude Include="state_render.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="texture.h" />
+    <ClInclude Include="wall.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\bin\shaders\cg.frag" />

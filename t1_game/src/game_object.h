@@ -2,38 +2,40 @@
 #ifndef __GAME_OBJECT_H_
 #define	__GAME_OBJECT_H_
 
-#include <iostream>
-
 #include "texture.h"
 #include "quad.h"
+#include "circle.h"
+#include "wall.h"
 
-GLuint program_object;
+GLuint program_object, program_obj_color;
 quad_t	quad;
+circle_t circle;
+
+float z_depth = 0.6f;
 
 const char* sprites_vert_shader = "../bin/shaders/cg.vert";
 const char* sprites_frag_shader = "../bin/shaders/cg.frag";
+const char* color_vert_shader = "../bin/shaders/circ.vert";
+const char* color_frag_shader = "../bin/shaders/circ.frag";
 
 mat4 aspect_matrix;
+
+enum object_state
+{
+	wait,
+	moving,
+	hit_a,
+	hit_b,
+	hit_c,
+	dead
+};
 
 void game_object_init()
 {
 	if (!(program_object = cg_create_program(sprites_vert_shader, sprites_frag_shader))) { printf("Loading map is failed\n"); glfwTerminate(); return; }
+	if (!(program_obj_color = cg_create_program(color_vert_shader, color_frag_shader))) { printf("Loading map is failed\n"); glfwTerminate(); return; }
 	quad.init();
-
-	//glGenVertexArrays(1, &VAO);
-	//glBindVertexArray(VAO);
-}
-
-void game_update(ivec2 window_size)
-{
-	float aspect = window_size.x / (float)window_size.y;
-	aspect_matrix =
-	{
-		min(1 / aspect,1.0f), 0, 0, 0,
-		0, min(aspect,1.0f), 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1
-	};
+	circle.init();
 }
 
 struct background_t
@@ -42,12 +44,12 @@ struct background_t
 
 	void init()
 	{
-		tex.load("../bin/images/back.png");
+		tex.load_mip("../bin/images/back.png");
 	}
 
 	void render()
 	{
-		glDisable(GL_DEPTH_TEST);
+		//glDisable(GL_DEPTH_TEST);
 
 		glUseProgram(program_object);
 
@@ -55,83 +57,22 @@ struct background_t
 		cg_bind_vertex_attributes(program_object);
 
 		mat4 aspect_matrix = mat4();
-		mat4 model_matrix = mat4::scale(1.5f);
+		mat4 model_matrix = mat4::translate(vec3(0,0,z_depth+0.2f)) * mat4::scale(1.0f);
 
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, model_matrix);
 
 		glBindTexture(GL_TEXTURE_2D, tex.texture[0]);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-		glEnable(GL_DEPTH_TEST);
+		//glEnable(GL_DEPTH_TEST);
 	};
 
-};
-
-
-struct map_t
-{
-	std::vector<brick_t> bricks;
-	Texture tex;
-	vec2	size = vec2(0.5f);
-
-	std::vector<std::vector<GLuint>> tileData = 
-	{
-		{1,1,1,1,1,1,1,1,1,1,1,1},
-		{0,0,0,0,0,0,0,0,0,0,0,0},
-		{1,1,1,1,1,1,1,1,1,1,1,1},
-		{0,0,0,0,0,0,0,0,0,0,0,0},
-		{1,1,1,1,1,1,1,1,1,1,1,1},
-		{0,0,0,0,0,0,0,0,0,0,0,0},
-		{1,1,1,1,1,1,1,1,1,1,1,1}
-	};
-	
-	void init()
-	{
-		if (tex.texture[0]) glDeleteTextures(1, &tex.texture[0]);
-		tex.load("../bin/images/Snowflake.png");
-
-		uint height = tileData.size();
-		uint width = tileData[0].size();
-		vec2 unit_size = vec2( size.x / (float)width, size.y / (float)height );
-		for (uint y = 0; y < height; y++)
-		{
-			for (uint x = 0; x < width; x++)
-			{
-				// Check block type from level data (2D level array)
-				if (tileData[y][x] == 1) // Solid
-				{
-					vec2 pos = size * vec2( (float)x , (float)y ) - vec2(size.x*height/2, size.y*width/2);
-					brick_t b = { pos, 0.2f };
-					bricks.push_back(b);
-				}
-			}
-		}
-	};
-
-	void render()
-	{
-		
-		glUseProgram(program_object);
-
-		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
-
-		glBindBuffer(GL_ARRAY_BUFFER, quad.vertex_buffer);
-		cg_bind_vertex_attributes(program_object);
-
-		for (auto& b : bricks)
-		{
-			b.update();
-			glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, b.model_matrix);
-			glBindTexture(GL_TEXTURE_2D, tex.texture[0]);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-		}
-	};
 };
 
 struct creature_t
 {
 	Texture	tex;
-	float	scale = 0.1f;
+	float	scale;
 
 	//model_matrix
 	mat4 model_matrix;
@@ -139,60 +80,73 @@ struct creature_t
 
 	//attribute for games;
 	vec3	position = vec3(0);
-	vec3	size = vec3(scale, scale, 0);
+	vec2	size;
 
 	uint	hit_on;
 	uint	life;
+	vec2	velocity = vec2(0.1f);
+	float	mass = 1.0f;
 
-	creature_t(float size = 1.0f) :scale(size) { model_matrix = mat4::scale(size); }
-
-	void init()
+	void init(float scale)
 	{	
 		for (auto& t : tex.texture)
 			if (t) glDeleteTextures(1, &t);
-		tex.load("../bin/images/Snowflake.png");
+		tex.load("../bin/images/creature/1.png");
 
+		size = scale * vec2(1.0f, 1.0f);
 		mov_i = 0;
 	};
 
-	//control function
-
-	void update()
+	void update(float t)
 	{
-		model_matrix = mat4::translate(position) * mat4::scale(scale);
+		//position = sin(t);
+		model_matrix = mat4::translate(position) * mat4::scale(size.x, size.y, 0);
 	}
 
-	void render()
+	void render_quad()
 	{
-		//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		float t = (float)glfwGetTime();
+
 		glUseProgram(program_object);
 		 
-		this->update();
+		update(t);
 
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, model_matrix);
 
-		//glBindVertexArray(quad.VAO);
 		glBindBuffer(GL_ARRAY_BUFFER, quad.vertex_buffer);
 		cg_bind_vertex_attributes(program_object);
 
 		glBindTexture(GL_TEXTURE_2D, tex.texture[mov_i]);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-		glBindVertexArray(0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	};
 
-	void moving(vec3 move)
+	void render_circle()
 	{
-		mov_i++;
-		mov_i = mov_i % tex.texture.size();
-		model_matrix *= mat4::translate(move);
+		float t = (float)glfwGetTime();
+
+		glUseProgram(program_obj_color);
+
+		model_matrix = mat4::translate(position) * mat4::scale(size.x, size.y, 0);
+
+		glUniform1f(glGetUniformLocation(program_obj_color, "time"), t);
+		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
+		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "model_matrix"), 1, GL_TRUE, model_matrix);
+
+		glBindBuffer(GL_ARRAY_BUFFER, circle.vertex_buffer);
+		cg_bind_vertex_attributes(program_obj_color);
+		  
+		//glBindTexture(GL_TEXTURE_2D, tex.texture[0]);
+		glDrawArrays(GL_TRIANGLES, 0, NUM_TESS * 3);
+
+		glBindTexture(GL_TEXTURE_2D, 0);
 	};
 
-
 };
-  
+
+
 struct player_t
 {
 	//draw attribute
@@ -202,19 +156,22 @@ struct player_t
 	Texture	attack;
 
 	float	scale = 0.3f;
-	uint	mov_i;
+	float	timer;
 
 	//model_matrix
 	mat4 model_matrix;
 	GLuint texture;
 
 	//game attribute for games;
-	vec3	position = vec3(0);
+	vec3	position = vec3(-1.0f, 0.0f,0.0f);
+	vec3	result = vec3(0);
 	vec3	size = vec3(scale, scale, 0);
 
 	uint	state;
 	uint	life = 3;
 	uint	hit_on;
+	uint	mov_i;
+	uint	mov;
 	
 	void init()
 	{
@@ -223,6 +180,7 @@ struct player_t
 
 		normal.load("../bin/images/sprites/1.png");
 		normal.load("../bin/images/sprites/2.png");
+		normal.load("../bin/images/sprites/3.png");
 
 		for (auto& t : walk.texture)
 			if (t) glDeleteTextures(1, &t);
@@ -234,7 +192,6 @@ struct player_t
 		walk.load("../bin/images/sprites/walk5.png");
 		walk.load("../bin/images/sprites/walk6.png");
 		walk.load("../bin/images/sprites/walk7.png");
-		walk.load("../bin/images/sprites/walk8.png");
 
 		for (auto& t : attack.texture)
 			if (t) glDeleteTextures(1, &t);
@@ -244,62 +201,169 @@ struct player_t
 		attack.load("../bin/images/sprites/punch3.png");
 
 		mov_i = 0;
+		mov = 0;
 		hit_on = 0;
-		model_matrix = mat4::translate(position) * mat4::scale(scale);
+		model_matrix = mat4::translate(position) * mat4::scale(scale, scale*1.3f, scale);
+
+		timer = (float)glfwGetTime();
 	};
 
 	void update()
 	{
-		model_matrix = mat4::translate(position) * mat4::scale(scale);
+		if ((float)glfwGetTime() > timer) { state = wait; timer += 4.0f;  printf("%f, %f\n", timer, (float)glfwGetTime()); }
+		model_matrix = mat4::translate(position) * mat4::scale(scale, scale * 1.3f, scale);
 	}
 
 	//control function
 	void render(float t)
 	{
-		int k = (int)(t*3);
+		int n = (int)(sin(t)*sin(t)*3);
+		int w = (int)(sin(t) * sin(t) * 7);
+		float m = sin(t);
+
 		glUseProgram(program_object);
 		
-		this->update();
+		update();
 
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, model_matrix);
 
 		glBindBuffer(GL_ARRAY_BUFFER, quad.vertex_buffer);
 		cg_bind_vertex_attributes(program_object);
-	
-		if(hit_on)
-			glBindTexture(GL_TEXTURE_2D, attack.texture[2]);
-		else if (!mov_i) glBindTexture(GL_TEXTURE_2D, normal.texture[0]);
-		else glBindTexture(GL_TEXTURE_2D, walk.texture[mov_i]);
-
+		
+		if (state == hit_a) glBindTexture(GL_TEXTURE_2D, attack.texture[2]);
+		else if (state == hit_b) glBindTexture(GL_TEXTURE_2D, attack.texture[1]);
+		else if(state == wait) glBindTexture(GL_TEXTURE_2D, normal.texture[n]);
+		else if (state == moving)	glBindTexture(GL_TEXTURE_2D, walk.texture[mov]);
+		
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 		glBindVertexArray(0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	};
 
-	void moving(vec3 move)
+	void control_axis(int key, int action)
 	{
-		mov_i++;
-		mov_i = mov_i % walk.texture.size();
+		vec3 xyz_move = (0.04f);	
 
-		position += move;
+		mov_i++;
+		mov = (int)floor(mov_i/2) % walk.texture.size();
+
+		if (position.y + 0.20f > z_depth || position.z + 0.20f > z_depth) return;
+
+		if (key == GLFW_KEY_RIGHT)
+		{
+			state = moving;
+
+			position += vec3(xyz_move.x, 0, 0);
+			if (key == GLFW_KEY_UP) position += vec3(xyz_move);
+			else if (key == GLFW_KEY_DOWN) position -= vec3(xyz_move);
+		}
+		if (key == GLFW_KEY_LEFT)
+		{
+			state = moving;
+
+			position -= vec3(xyz_move.x, 0, 0);
+			if (key == GLFW_KEY_UP) position += vec3(xyz_move);
+			else if (key == GLFW_KEY_DOWN) position -= vec3(xyz_move);
+		}
+		if (key == GLFW_KEY_UP)
+		{
+			state = moving;
+
+			position += vec3(0, xyz_move.y, xyz_move.z);
+			if (key == GLFW_KEY_RIGHT) position += vec3(xyz_move.x, xyz_move.y, 0);
+			else if (key == GLFW_KEY_LEFT) position -= vec3(xyz_move.x, xyz_move.y, 0);
+		}
+		if (key == GLFW_KEY_DOWN)
+		{
+			state = moving;
+
+			position -= vec3(0, xyz_move.y, xyz_move.z);
+			if (key == GLFW_KEY_RIGHT) position += vec3(xyz_move.x, xyz_move.y, 0);
+			else if (key == GLFW_KEY_LEFT) position -= vec3(xyz_move.x, xyz_move.y, 0);
+		}
+
 	};
 
 	void control(int key, int action)
 	{
+		int previous_state = wait;
 		if (key == GLFW_KEY_Z)
 		{
 			if (action == GLFW_PRESS)
+			{
+				state = hit_a;
 				this->hit_on = 1;
-			else if(action == GLFW_RELEASE)
+			}
+			else if (action == GLFW_RELEASE)
+			{
+				state = hit_b;
 				this->hit_on = 0;
+			}
 		}
 	}
-
 };
 
 
-
+//struct map_t
+//{
+//	std::vector<brick_t> bricks;
+//	Texture tex;
+//	vec2	size = vec2(0.5f);
+//
+//	std::vector<std::vector<GLuint>> tileData =
+//	{
+//		{1,1,1,1,1,1,1,1,1,1,1,1},
+//		{0,0,0,0,0,0,0,0,0,0,0,0},
+//		{1,1,1,1,1,1,1,1,1,1,1,1},
+//		{0,0,0,0,0,0,0,0,0,0,0,0},
+//		{1,1,1,1,1,1,1,1,1,1,1,1},
+//		{0,0,0,0,0,0,0,0,0,0,0,0},
+//		{1,1,1,1,1,1,1,1,1,1,1,1}
+//	};
+//
+//	void init()
+//	{
+//		if (tex.texture[0]) glDeleteTextures(1, &tex.texture[0]);
+//		tex.load("../bin/images/creature/1.png");
+//
+//		uint height = tileData.size();
+//		uint width = tileData[0].size();
+//		vec2 unit_size = vec2(size.x / (float)width, size.y / (float)height);
+//		for (uint y = 0; y < height; y++)
+//		{
+//			for (uint x = 0; x < width; x++)
+//			{
+//				// Check block type from level data (2D level array)
+//				if (tileData[y][x] == 1) // Solid
+//				{
+//					vec2 pos = size * vec2((float)x, (float)y) - vec2(size.x * height / 2, size.y * width / 2);
+//					brick_t b = { pos, 0.2f };
+//					bricks.push_back(b);
+//				}
+//			}
+//		}
+//	};
+//
+//	void render()
+//	{
+//
+//		glUseProgram(program_object);
+//
+//		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
+//
+//		glBindBuffer(GL_ARRAY_BUFFER, quad.vertex_buffer);
+//		cg_bind_vertex_attributes(program_object);
+//
+//		for (auto& b : bricks)
+//		{
+//			b.update();
+//			glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, b.model_matrix);
+//			glBindTexture(GL_TEXTURE_2D, tex.texture[0]);
+//			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+//		}
+//	};
+//};
 
 #endif

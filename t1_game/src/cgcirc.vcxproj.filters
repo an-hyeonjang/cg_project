@@ -43,7 +43,19 @@
     <ClInclude Include="texture.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="collision.h">
+    <ClInclude Include="game_level.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="state_render.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="simple_math.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="circle.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wall.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

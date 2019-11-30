@@ -1,26 +1,18 @@
 #include "cgmath.h"			// slee's simple math library
 #include "cgut.h"			// slee's OpenGL utility
 
-#include "game_object.h"
-#include "collision.h"
+#include "state_render.h"
 
 //*******************************************************************
 // forward declarations for freetype text
 void text_init();
 void render_text(std::string text, GLint x, GLint y, GLfloat scale, vec4 color);
+void render_text(std::string text, GLint x, GLint y, GLfloat scale, vec4 color, float t, GLFWwindow* window);
 
-enum game_state
-{
-	GAME_MENU,
-	GAME_STAGE0,
-	GAME_STAGE1,
-	GAME_WIN,
-	GAME_FAIL
-};
 
 //*******************************************************************
 // global constants
-static const char* window_name = "cg-invader";
+static const char* window_name = "CG invader";
 static const char* vert_shader_path = "../bin/shaders/circ.vert";
 static const char* frag_shader_path = "../bin/shaders/circ.frag";
 
@@ -40,7 +32,6 @@ GLuint	SRC = 0;
 // global variables
 int		frame = 0;						// index of rendering frames
 ivec2	image_size;
-float	move = 0.1f;
 
 
 //******************************************************************
@@ -52,10 +43,18 @@ background_t	menu_background_image;
 background_t	background;
 uint	stage;
 player_t	player;
+player_t	player1;
 std::vector<creature_t>	creatures;
 
-//*******************************************************************
-// stage 1
+enum game_state
+{
+	GAME_MENU,
+	GAME_STAGE0,
+	GAME_STAGE01,
+	GAME_STAGE1,
+	GAME_OVER,
+	GAME_WIN
+};
 
 bool user_init()
 {
@@ -79,50 +78,66 @@ bool user_init()
 
 	background.init();
 	player.init();
+	player1.init();
 
 	//stage2
-
-	creature_t creat;
-	creatures.push_back(creat);
-	for(auto& c: creatures) c.init();
+	creatures = create_creatures(2, 0.5f);
 
 	return true;
 }
 
 void update()
 {
+	float t = (float)glfwGetTime();
 	game_update(window_size);
 
 	for (auto& c : creatures)
 		change_state(player, c);
 }
 
-void render()
+void state0_render()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	float t = (float)sin(glfwGetTime());
+	float t = (float)glfwGetTime();
+
+	background.render();
+	text_box_render();
+	
+	player.render(t);
+	for (auto& c : creatures)
+		c.render_circle();
+
+	render_text("I am undergraduated student!!", 180, 60, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("I really want to graduate in this semester with good grade", 180, 90, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("I heard CG class is the best for it", 180, 120, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+
+	glfwSwapBuffers(window);
+}
+
+void state01_render()
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	float t = (float)glfwGetTime();
+
+	player.render(t);
+
+	glfwSwapBuffers(window);
+}
+
+void stage1_render()
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	
+	float t = (float)glfwGetTime();
 	
 	background.render();
+	//for (auto& c : creatures) c.render();
 	player.render(t);
-	for (auto& c : creatures) c.render();
 
 	glfwSwapBuffers(window);
 }
-
-void menu_render()
-{
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	menu_background_image.render();
-
-	render_text(window_name, 100, 100, 1.0f, vec4(0.5f, 0.8f, 0.2f, 1.0f));
-	render_text("I love Computer Graphics!", 100, 125, 0.5f, vec4(0.7f, 0.4f, 0.1f, 0.8f));
-	render_text("Blinking text here", 100, 155, 0.6f, vec4(0.5f, 0.7f, 0.7f, 1.0f));
-
-	glfwSwapBuffers(window);
-}
-
 
 void reshape(GLFWwindow* window, int width, int height)
 {
@@ -130,41 +145,17 @@ void reshape(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-void print_help()
-{
-	printf("work\n");
-}
-
 void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	player.control(key, action);
 	if (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_Q)	glfwSetWindowShouldClose(window, GL_TRUE);
-		else if (key == GLFW_KEY_H || key == GLFW_KEY_F1)	print_help();
+	else if (key == GLFW_KEY_H || key == GLFW_KEY_F1) {}
+	
+	player.control(key, action);
+	player.control_axis(key, action);
 
-	if (key == GLFW_KEY_RIGHT)
+	if (key == GLFW_KEY_ENTER)
 	{
-		player.moving(vec3(move,0,0));
-	}
-	if (key == GLFW_KEY_UP)
-	{
-		player.moving(vec3(0,move,0));
-	}
-	if (key == GLFW_KEY_DOWN)
-	{
-		player.moving(vec3(0,-move,0));
-	}
-	if (key == GLFW_KEY_LEFT)
-	{
-		player.moving(vec3(-move,0,0));
-	}
-	if (key == GLFW_KEY_Z)
-	{
-		if(action == GLFW_PRESS) player.hit_on = 1;
-		else if (action == GLFW_RELEASE) player.hit_on = 0;
-	}
-	if (key == GLFW_KEY_SPACE)
-	{
-		stage %= game_state();
+		stage %= 4;
 		if (action == GLFW_PRESS) stage += 1;
 	}
 }
@@ -205,7 +196,8 @@ int main(int argc, char* argv[])
 	glfwSetKeyCallback(window, keyboard);			// callback for keyboard events
 	glfwSetMouseButtonCallback(window, mouse);	// callback for mouse click inputs
 	glfwSetCursorPosCallback(window, motion);		// callback for mouse movements
-
+	
+	//menu_render(window_name, window);
 	// enters rendering/event loop
 	for (frame = 0; !glfwWindowShouldClose(window); frame++)
 	{
@@ -213,23 +205,25 @@ int main(int argc, char* argv[])
 		{
 		case GAME_MENU:
 			glfwPollEvents();
-			menu_render();
+			menu_render(window_name, window);
+			//glfwWaitEvents();
 			break;
 		case GAME_STAGE0:
-			glfwPollEvents();	// polling and processing of events
+			glfwPollEvents();
 			update();
-			render();
+			state0_render();
+			break;
+		case GAME_STAGE01:
+			glfwPollEvents();
+			update();
+			state01_render();
 			break;
 		case GAME_STAGE1:
-			glfwPollEvents();	// polling and processing of events
+			glfwPollEvents();
 			update();
-			render();
+			stage1_render();
 			break;
-		case GAME_WIN:
-			break;
-		case GAME_FAIL:
-			break;
-		}			// per-frame render
+		}
 	}
 
 	// normal termination
