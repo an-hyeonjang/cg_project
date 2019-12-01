@@ -7,15 +7,16 @@ in vec2 texcoord;
 
 out vec3 norm;
 out vec2 tc;
+out vec4 epos;
 
-uniform mat4	model_matrix;	// 4x4 transformation matrix: explained later in the lecture
+// uniform variables
+uniform mat4	model_matrix;
 uniform mat4	aspect_matrix;
 
 void main()
 {
 	gl_Position = aspect_matrix * model_matrix * vec4(position, 1);
 
-	norm = normal;
-
+	norm = normalize(mat3(aspect_matrix * model_matrix)*normal);
 	tc = texcoord;
 }

@@ -63,6 +63,7 @@
     <ClInclude Include="cgmath.h" />
     <ClInclude Include="cgut.h" />
     <ClInclude Include="circle.h" />
+    <ClInclude Include="light.h" />
     <ClInclude Include="simple_math.h" />
     <ClInclude Include="game_level.h" />
     <ClInclude Include="game_object.h" />

@@ -33,7 +33,6 @@ GLuint	SRC = 0;
 int		frame = 0;						// index of rendering frames
 ivec2	image_size;
 
-
 //******************************************************************
 // game_menu
 background_t	menu_background_image;
@@ -62,7 +61,6 @@ bool user_init()
 	glClearColor(39 / 255.0f, 40 / 255.0f, 34 / 255.0f, 1.0f);	// set clear color
 	glEnable(GL_CULL_FACE);								// turn on backface culling
 	glEnable(GL_DEPTH_TEST);								// turn on depth tests
-
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -74,14 +72,13 @@ bool user_init()
 	menu_background_image.init();
 
 	//stage0
-	game_object_init();
+	game_object_init(window_size);
 
 	background.init();
 	player.init();
-	player1.init();
 
 	//stage2
-	creatures = create_creatures(2, 0.5f);
+	creatures = create_creatures(20, 0.2f);
 
 	return true;
 }
@@ -90,9 +87,6 @@ void update()
 {
 	float t = (float)glfwGetTime();
 	game_update(window_size);
-
-	for (auto& c : creatures)
-		change_state(player, c);
 }
 
 void state0_render()
@@ -104,9 +98,8 @@ void state0_render()
 	background.render();
 	text_box_render();
 	
+
 	player.render(t);
-	for (auto& c : creatures)
-		c.render_circle();
 
 	render_text("I am undergraduated student!!", 180, 60, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
 	render_text("I really want to graduate in this semester with good grade", 180, 90, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
@@ -133,7 +126,17 @@ void stage1_render()
 	float t = (float)glfwGetTime();
 	
 	background.render();
-	//for (auto& c : creatures) c.render();
+
+	for (auto& c : creatures)
+	{
+		c.update(t);
+		wall_collision(c, wall);
+		object_collision(c, creatures);
+		c.render_circle();
+	}
+
+	change_state(player, creatures);
+
 	player.render(t);
 
 	glfwSwapBuffers(window);

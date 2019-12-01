@@ -58,6 +58,9 @@
     <ClInclude Include="wall.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="light.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\bin\shaders\circ.frag">

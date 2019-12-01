@@ -6,10 +6,15 @@
 #include "quad.h"
 #include "circle.h"
 #include "wall.h"
+#include "light.h"
 
 GLuint program_object, program_obj_color;
-quad_t	quad;
-circle_t circle;
+
+quad_t		quad;
+circle_t	circle;
+wall_t		wall;
+light_t		light;
+material_t	material;
 
 float z_depth = 0.6f;
 
@@ -30,13 +35,28 @@ enum object_state
 	dead
 };
 
-void game_object_init()
+void game_object_init(ivec2 window_size)
 {
 	if (!(program_object = cg_create_program(sprites_vert_shader, sprites_frag_shader))) { printf("Loading map is failed\n"); glfwTerminate(); return; }
 	if (!(program_obj_color = cg_create_program(color_vert_shader, color_frag_shader))) { printf("Loading map is failed\n"); glfwTerminate(); return; }
+
 	quad.init();
 	circle.init();
+	wall.init(window_size);
 }
+
+void game_update(ivec2 window_size)
+{
+	float aspect = window_size.x / (float)window_size.y;
+	aspect_matrix =
+	{
+		min(1 / aspect,1.0f), 0, 0, 0,
+		0, min(aspect,1.0f), 0, 0,
+		0, 0, 1, 0,
+		0, 0, 0, 1
+	};
+}
+
 
 struct background_t
 {
@@ -79,12 +99,13 @@ struct creature_t
 	uint	mov_i;
 
 	//attribute for games;
+	uint	index;
 	vec3	position = vec3(0);
 	vec2	size;
 
 	uint	hit_on;
 	uint	life;
-	vec2	velocity = vec2(0.1f);
+	vec3	velocity = vec3(0.1f);
 	float	mass = 1.0f;
 
 	void init(float scale)
@@ -99,7 +120,8 @@ struct creature_t
 
 	void update(float t)
 	{
-		//position = sin(t);
+		position += velocity / 100.0f;
+		position = vec3(position.x, position.y, min(position.z, z_depth));
 		model_matrix = mat4::translate(position) * mat4::scale(size.x, size.y, 0);
 	}
 
@@ -130,8 +152,24 @@ struct creature_t
 		glUseProgram(program_obj_color);
 
 		model_matrix = mat4::translate(position) * mat4::scale(size.x, size.y, 0);
+		mat4 view_matrix = mat4::look_at(-1.0f, 0.0f, 1.0f);
 
 		glUniform1f(glGetUniformLocation(program_obj_color, "time"), t);
+
+		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "view_matrix"), 1, GL_TRUE, aspect_matrix);
+		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "projection_matrix"), 1, GL_TRUE, view_matrix);
+
+		glUniform4fv(glGetUniformLocation(program_obj_color, "light_position"), 1, light.position);
+		glUniform4fv(glGetUniformLocation(program_obj_color, "Ia"), 1, light.ambient);
+		glUniform4fv(glGetUniformLocation(program_obj_color, "Id"), 1, light.diffuse);
+		glUniform4fv(glGetUniformLocation(program_obj_color, "Is"), 1, light.specular);
+
+		// setup material properties
+		glUniform4fv(glGetUniformLocation(program_obj_color, "Ka"), 1, material.ambient);
+		glUniform4fv(glGetUniformLocation(program_obj_color, "Kd"), 1, material.diffuse);
+		glUniform4fv(glGetUniformLocation(program_obj_color, "Ks"), 1, material.specular);
+		glUniform1f(glGetUniformLocation(program_obj_color, "shininess"), material.shininess);
+
 		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
 		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "model_matrix"), 1, GL_TRUE, model_matrix);
 
