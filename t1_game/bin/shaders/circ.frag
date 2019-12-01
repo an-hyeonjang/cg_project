@@ -6,7 +6,7 @@ in vec4 epos;
 
 out vec4 fragColor;
 
-uniform mat4	aspect_matrix;
+uniform mat4	view_matrix;
 uniform vec4	light_position, Ia, Id, Is;	// light
 uniform vec4	Ka, Kd, Ks;					// material properties
 uniform float	shininess;
@@ -22,7 +22,7 @@ vec4 phong( vec3 l, vec3 n, vec3 h, vec4 Kd )
 
 void main()
 {
-	vec4 lpos = aspect_matrix *light_position;
+	vec4 lpos = view_matrix *light_position;
 
 	vec3 n = normalize(norm);	// norm interpolated via rasterizer should be normalized again here
 	vec3 p = epos.xyz;			// 3D position of this fragment

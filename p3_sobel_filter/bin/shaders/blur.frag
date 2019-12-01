@@ -23,11 +23,6 @@ void main()
 	mat3 grayTexels;
 	vec3 texel = vec3(0);
 	
-	if(pass_n == 3)
-	{
-		fragColor = texture(TEX, tc);
-	}
-
 	for(int x=0; x<3; x++)
 	{
 		for(int y=0; y<3; y++)

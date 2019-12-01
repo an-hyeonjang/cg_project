@@ -8,6 +8,9 @@
 #include "wall.h"
 #include "light.h"
 
+#include "irrKlang\irrKlang.h"
+#pragma comment(lib, "irrKlang.lib" )
+
 GLuint program_object, program_obj_color;
 
 quad_t		quad;
@@ -24,6 +27,17 @@ const char* color_vert_shader = "../bin/shaders/circ.vert";
 const char* color_frag_shader = "../bin/shaders/circ.frag";
 
 mat4 aspect_matrix;
+
+//*********************************************************
+//irrklang
+
+irrklang::ISoundEngine* engine;
+irrklang::ISoundSource* back_src = nullptr;
+irrklang::ISoundSource* bubble_effect_src = nullptr;
+irrklang::ISoundSource* attack_effect_src = nullptr;
+
+const char* effect_src_a = "../bin/sounds/attack.wav";
+const char* effect_src_b = "../bin/sounds/bubble.wav";
 
 enum object_state
 {
@@ -43,6 +57,18 @@ void game_object_init(ivec2 window_size)
 	quad.init();
 	circle.init();
 	wall.init(window_size);
+
+	//irrklang
+	engine = irrklang::createIrrKlangDevice();
+	if (!engine) return;
+
+	//add sound source from the sound file
+	//back_src = engine->addSoundSourceFromFile(src1);
+	attack_effect_src = engine->addSoundSourceFromFile(effect_src_a);
+	bubble_effect_src = engine->addSoundSourceFromFile(effect_src_b);
+
+	attack_effect_src->setDefaultVolume(0.4f);
+	bubble_effect_src->setDefaultVolume(1.2f);
 }
 
 void game_update(ivec2 window_size)
@@ -77,7 +103,7 @@ struct background_t
 		cg_bind_vertex_attributes(program_object);
 
 		mat4 aspect_matrix = mat4();
-		mat4 model_matrix = mat4::translate(vec3(0,0,z_depth+0.2f)) * mat4::scale(1.0f);
+		mat4 model_matrix = mat4::translate(vec3(0,0,z_depth+0.3f)) * mat4::scale(1.0f);
 
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, model_matrix);
@@ -151,13 +177,14 @@ struct creature_t
 
 		glUseProgram(program_obj_color);
 
+		vec3	eye = vec3(0.0f, 0.0f, -5.0f);
+		vec3	at = vec3(0);
+		vec3	up = vec3(0, 1.0f, 0);
+
 		model_matrix = mat4::translate(position) * mat4::scale(size.x, size.y, 0);
-		mat4 view_matrix = mat4::look_at(-1.0f, 0.0f, 1.0f);
+		mat4 view_matrix = mat4::rotate(vec3(1, 0, 0), PI / 2) *  mat4::look_at(eye, at, up);
 
 		glUniform1f(glGetUniformLocation(program_obj_color, "time"), t);
-
-		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "view_matrix"), 1, GL_TRUE, aspect_matrix);
-		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "projection_matrix"), 1, GL_TRUE, view_matrix);
 
 		glUniform4fv(glGetUniformLocation(program_obj_color, "light_position"), 1, light.position);
 		glUniform4fv(glGetUniformLocation(program_obj_color, "Ia"), 1, light.ambient);
@@ -170,6 +197,7 @@ struct creature_t
 		glUniform4fv(glGetUniformLocation(program_obj_color, "Ks"), 1, material.specular);
 		glUniform1f(glGetUniformLocation(program_obj_color, "shininess"), material.shininess);
 
+		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "view_matrix"), 1, GL_TRUE, view_matrix);
 		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
 		glUniformMatrix4fv(glGetUniformLocation(program_obj_color, "model_matrix"), 1, GL_TRUE, model_matrix);
 
@@ -177,7 +205,7 @@ struct creature_t
 		cg_bind_vertex_attributes(program_obj_color);
 		  
 		//glBindTexture(GL_TEXTURE_2D, tex.texture[0]);
-		glDrawArrays(GL_TRIANGLES, 0, NUM_TESS * 3);
+		glDrawElements(GL_TRIANGLES, (NUM_TESS + 1) * (NUM_TESS + 1) * 3, GL_UNSIGNED_INT, nullptr);
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 	};
@@ -248,6 +276,7 @@ struct player_t
 
 	void update()
 	{
+		size = vec3(scale, scale, scale);
 		if ((float)glfwGetTime() > timer) { state = wait; timer += 4.0f;  printf("%f, %f\n", timer, (float)glfwGetTime()); }
 		model_matrix = mat4::translate(position) * mat4::scale(scale, scale * 1.3f, scale);
 	}
@@ -255,25 +284,28 @@ struct player_t
 	//control function
 	void render(float t)
 	{
-		int n = (int)(sin(t)*sin(t)*3);
-		int w = (int)(sin(t) * sin(t) * 7);
-		float m = sin(t);
+		int n = (int)(sin(t)*sin(t)*normal.texture.size());
 
 		glUseProgram(program_object);
 		
 		update();
 
-		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
-		glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, model_matrix);
-
 		glBindBuffer(GL_ARRAY_BUFFER, quad.vertex_buffer);
 		cg_bind_vertex_attributes(program_object);
 		
-		if (state == hit_a) glBindTexture(GL_TEXTURE_2D, attack.texture[2]);
+		if (state == hit_a)
+		{
+			size = vec3(scale * 1.2f, scale * 1.3f, scale);
+			model_matrix = mat4::translate(position) * mat4::scale(size);
+			glBindTexture(GL_TEXTURE_2D, attack.texture[2]);
+		}
 		else if (state == hit_b) glBindTexture(GL_TEXTURE_2D, attack.texture[1]);
 		else if(state == wait) glBindTexture(GL_TEXTURE_2D, normal.texture[n]);
 		else if (state == moving)	glBindTexture(GL_TEXTURE_2D, walk.texture[mov]);
 		
+		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
+		glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, model_matrix);
+
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 		glBindVertexArray(0);
@@ -287,7 +319,7 @@ struct player_t
 		mov_i++;
 		mov = (int)floor(mov_i/2) % walk.texture.size();
 
-		if (position.y + 0.20f > z_depth || position.z + 0.20f > z_depth) return;
+		if (position.y + 0.20f > z_depth || position.z + 0.20f > z_depth) position -= vec3(0,xyz_move.y, xyz_move.z);
 
 		if (key == GLFW_KEY_RIGHT)
 		{
@@ -331,6 +363,7 @@ struct player_t
 		{
 			if (action == GLFW_PRESS)
 			{
+				engine->play2D(attack_effect_src, false);
 				state = hit_a;
 				this->hit_on = 1;
 			}

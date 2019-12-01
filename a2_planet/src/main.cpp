@@ -76,14 +76,14 @@ void update()
 		0, 0, 0, 1
 	};
 
-	mat4 view_projection_matrix =
-	{ 
+	mat4 view_projection_matrix = mat4();
+	/*{ 
 		0,1,0,0,
 		0,0,1,0,
 		-1,0,0,1,
 		0,0,0,1 
 	};
-	
+	*/
 	// update common uniform variables in vertex/fragment shaders
 	GLint uloc;
 

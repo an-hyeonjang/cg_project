@@ -15,6 +15,7 @@ void render_text(std::string text, GLint x, GLint y, GLfloat scale, vec4 color, 
 static const char* window_name = "CG invader";
 static const char* vert_shader_path = "../bin/shaders/circ.vert";
 static const char* frag_shader_path = "../bin/shaders/circ.frag";
+static const char* src1 = "../bin/sounds/2.mp3";
 
 //*******************************************************************
 // window objects
@@ -32,20 +33,14 @@ GLuint	SRC = 0;
 // global variables
 int		frame = 0;						// index of rendering frames
 ivec2	image_size;
+float	score;
+float	timer;
 
 //******************************************************************
 // game_menu
 background_t	menu_background_image;
 
-//*******************************************************************
-// player attribute
-background_t	background;
-uint	stage;
-player_t	player;
-player_t	player1;
-std::vector<creature_t>	creatures;
-
-enum game_state
+enum game_stage
 {
 	GAME_MENU,
 	GAME_STAGE0,
@@ -54,6 +49,15 @@ enum game_state
 	GAME_OVER,
 	GAME_WIN
 };
+
+//*******************************************************************
+// player attribute
+background_t	background;
+game_stage	stage;
+player_t	player;
+player_t	win_player;
+player_t	fail_player;
+std::vector<creature_t>	creatures;
 
 bool user_init()
 {
@@ -64,8 +68,8 @@ bool user_init()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	stage = 0;
-
+	//stage level
+	stage = GAME_MENU;
 	text_init();
 
 	//game_menu
@@ -73,46 +77,73 @@ bool user_init()
 
 	//stage0
 	game_object_init(window_size);
-
 	background.init();
-	player.init();
 
-	//stage2
-	creatures = create_creatures(20, 0.2f);
+	//player
+	player.init();	//for real play
+	win_player.init();	//for win screen
+	fail_player.init();	//for game over screen
 
 	return true;
 }
 
 void update()
 {
-	float t = (float)glfwGetTime();
 	game_update(window_size);
 }
 
-void state0_render()
+void menu_render(const char* window_name)
+{
+	menu_background.init();
+
+	//engine->play2D(back_src, true);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	float a = (float)sin(glfwGetTime());
+	menu_background.render();
+	render_text(window_name, 600, 100, 2.0f, vec4(a, 0.6f, 0.8f, 1.0f));
+	render_text("press Enter", 800, 150, 0.8f, vec4(1.0f, 1.0f, 0.0f, a));
+
+	render_text("control key: up, down, left, right", 650, 400, 0.6f, vec4(1.0f, 1.0f, 1.0f, 1.0f));
+	render_text("attack key: z", 650, 430, 0.6f, vec4(1.0f, 1.0f, 1.0f, 1.0f));
+
+	glfwSwapBuffers(window);
+}
+
+void stage0_render()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	float t = (float)glfwGetTime();
 
 	background.render();
-	text_box_render();
+	text_box_render("../bin/images/text_box1.png");
 	
-
-	player.render(t);
-
-	render_text("I am undergraduated student!!", 180, 60, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("I am CG invader and until UNDERGRADUATED student!!", 180, 60, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
 	render_text("I really want to graduate in this semester with good grade", 180, 90, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
 	render_text("I heard CG class is the best for it", 180, 120, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("continue.. press c", 200, 160, 0.5f, vec4(1.0f, 1.0f, 0.0f, sin(t)*5));
+
+	player.render(t);
 
 	glfwSwapBuffers(window);
 }
 
-void state01_render()
+void stage01_render()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	float t = (float)glfwGetTime();
+
+	background.render();
+	text_box_render("../bin/images/text_box2.png");
+
+	render_text("Hello student!!", 180, 60, 0.45f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("I am Doctor CG. ", 180, 90, 0.45f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("This class is very hard. ", 180, 120, 0.45f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("And you need some Prerequisites. ", 180, 150, 0.45f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("Are you really ready for this? ", 180, 180, 0.45f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("Yes or No, press[y/n]", 200, 220, 0.5f, vec4(1.0f, 1.0f, 0.0f, sin(t)*5));
 
 	player.render(t);
 
@@ -122,9 +153,15 @@ void state01_render()
 void stage1_render()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	
-	float t = (float)glfwGetTime();
-	
+
+	float t = timer - (float)glfwGetTime();
+
+	std::string time = std::to_string(t);
+	std::string remain = std::to_string(creatures.size());
+
+	render_text("limit: "+ time, 100, 50, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+	render_text("remain: " + remain, 100, 80, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
+
 	background.render();
 
 	for (auto& c : creatures)
@@ -135,9 +172,48 @@ void stage1_render()
 		c.render_circle();
 	}
 
-	change_state(player, creatures);
-
 	player.render(t);
+
+	if (t < 0) stage = GAME_OVER;
+	if (change_state(player, creatures)) { stage = GAME_WIN; score = t; }
+
+	glfwSwapBuffers(window);
+}
+
+void game_win_render()
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	float t = (float)glfwGetTime();
+	float s = (float)sin(glfwGetTime()) * 5.0f;
+	float c = (float)cos(glfwGetTime()) * 5.0f;
+
+	render_text("Victory!", 320, 150, 2.5f, vec4(c, s, c, 1.0f));
+	render_text("score: " + std::to_string(score), 350, 250, 1.0f, vec4(s * s, s, c * s, 1.0f));
+	render_text("Yes or No, press[y/n]", 360, 280, 0.5f, vec4(s * s, s * s, s * s, s));
+
+	win_player.render(t);
+	win_player.position.x += sin(t)/200.0f;
+	win_player.position.y += sin(t) / 200.0f;
+
+	glfwSwapBuffers(window);
+}
+void game_over_render()
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	float t = (float)glfwGetTime();
+	float s = (float)sin(t) * 5.0f;
+	float c = (float)cos(t) * 5.0f;
+
+	fail_player.normal.load("../bin/images/sprites/fail1.png");
+	fail_player.normal.load("../bin/images/sprites/fail2.png");
+
+	fail_player.render(t/50.0f);
+
+	render_text("GAME OVER", 200, 150, 2.5f, vec4(c, s, c, 1.0f));
+	render_text("continue?", 400, 250, 1.0f, vec4(s*s, s, c*s, 1.0f));
+	render_text("Yes or No, press[y/n]", 400, 300, 0.5f, vec4(s * s, s * s, s * s, s));
 
 	glfwSwapBuffers(window);
 }
@@ -155,11 +231,24 @@ void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 	
 	player.control(key, action);
 	player.control_axis(key, action);
-
-	if (key == GLFW_KEY_ENTER)
+	
+	if (action == GLFW_PRESS)
 	{
-		stage %= 4;
-		if (action == GLFW_PRESS) stage += 1;
+		if (stage == GAME_MENU)
+			if (key == GLFW_KEY_ENTER) stage = GAME_STAGE0;
+		if (stage == GAME_STAGE0)
+			if (key == GLFW_KEY_C) stage = GAME_STAGE01;
+		if (stage == GAME_STAGE01)
+		{
+			if (key == GLFW_KEY_Y) stage = GAME_STAGE1;
+			else if (key == GLFW_KEY_N) stage = GAME_OVER;
+		}
+		if (stage == GAME_OVER)
+			if (key == GLFW_KEY_Y) stage = GAME_STAGE1;
+			else if (key == GLFW_KEY_N) glfwTerminate();
+		if (stage == GAME_WIN)
+			if (key == GLFW_KEY_Y) stage = GAME_STAGE1;
+			else if (key == GLFW_KEY_N) glfwTerminate();
 	}
 }
 
@@ -179,6 +268,7 @@ void motion(GLFWwindow* window, double x, double y)
 
 void user_finalize()
 {
+	engine->drop();
 }
 
 int main(int argc, char* argv[])
@@ -200,34 +290,66 @@ int main(int argc, char* argv[])
 	glfwSetMouseButtonCallback(window, mouse);	// callback for mouse click inputs
 	glfwSetCursorPosCallback(window, motion);		// callback for mouse movements
 	
-	//menu_render(window_name, window);
-	// enters rendering/event loop
-	for (frame = 0; !glfwWindowShouldClose(window); frame++)
-	{
+	top:
 		switch (stage)
 		{
 		case GAME_MENU:
-			glfwPollEvents();
-			menu_render(window_name, window);
-			//glfwWaitEvents();
+			for (frame = 0; !glfwWindowShouldClose(window); frame++)
+			{
+				glfwPollEvents();
+				menu_render(window_name);
+				if (stage != GAME_MENU) goto top;
+			}
 			break;
 		case GAME_STAGE0:
-			glfwPollEvents();
-			update();
-			state0_render();
+			for (frame = 0; !glfwWindowShouldClose(window); frame++)
+			{
+				glfwPollEvents();
+				update();
+				stage0_render();
+				if (stage != GAME_STAGE0) goto top;
+			}
 			break;
 		case GAME_STAGE01:
-			glfwPollEvents();
-			update();
-			state01_render();
+			for (frame = 0; !glfwWindowShouldClose(window); frame++)
+			{
+				glfwPollEvents();
+				update();
+				stage01_render();
+				if (stage != GAME_STAGE01) goto top;
+			}
 			break;
 		case GAME_STAGE1:
-			glfwPollEvents();
-			update();
-			stage1_render();
+			creatures = create_creatures(20, 0.2f);
+			timer = (float)glfwGetTime() + 45.0f;
+			for (frame = 0; !glfwWindowShouldClose(window); frame++)
+			{
+				glfwPollEvents();
+				update();
+				stage1_render();
+				if (stage != GAME_STAGE1) goto top;
+			}
+			break;;
+		case GAME_OVER:
+			for (frame = 0; !glfwWindowShouldClose(window); frame++)
+			{
+				glfwPollEvents();
+				update();
+				game_over_render();
+				if (stage != GAME_OVER) goto top;
+			}
+			break;
+		case GAME_WIN:
+			for (frame = 0; !glfwWindowShouldClose(window); frame++)
+			{
+				glfwPollEvents();
+				update();
+				game_win_render();
+				if (stage != GAME_WIN) goto top;
+			}
 			break;
 		}
-	}
+
 
 	// normal termination
 	user_finalize();

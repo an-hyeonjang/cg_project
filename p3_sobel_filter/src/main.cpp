@@ -6,7 +6,7 @@
 static const char*	window_name = "cgbase - separable blur";
 static const char*	vert_shader_path = "../bin/shaders/blur.vert";
 static const char*	frag_shader_path = "../bin/shaders/blur.frag";
-static const char*	image_path = "../bin/images/Lena.jpg";
+static const char*	image_path = "../bin/images/Doctor.jpg";
 
 //*******************************************************************
 // include stb_image with the implementation preprocessor definition
@@ -26,26 +26,12 @@ GLuint	fbo = 0, rbo = 0;					// framebuffer objects
 GLuint	SRC = 0, SEC = 0, THR = 0;
 GLuint	PASS_NUMBER = 0;	// texture objects
 
-struct camera
-{
-	vec3	eye = vec3(0.0f, 0.0f, -2.0f);
-	vec3	at = vec3(0);
-	vec3	up = vec3(0, 0.0f, 0);
-	mat4	view_matrix = mat4::look_at(eye, at, up);
-
-	float	fovy = PI / 4.0f; // must be in radian
-	float	aspect_ratio;
-	float	dnear = 0.1f;
-	float	dfar = 100.0f;
-	mat4	projection_matrix;
-};
 
 //*******************************************************************
 // global variables
 int		frame=0;	// index of rendering frames
 ivec2	image_size;
 struct { bool left=false, right=false, up=false, down=false; operator bool() const { return left||right||up||down;} } b;
-camera	cam;
 
 //*******************************************************************
 void update()
@@ -66,54 +52,29 @@ void draw_quad()
 
 void render()
 {
-	float t = float(glfwGetTime());
-	glUseProgram( program );
-	cam.aspect_ratio = window_size.x/float(window_size.y);
-	cam.projection_matrix = mat4::perspective(cam.fovy, cam.aspect_ratio, cam.dnear, cam.dfar);
-	
-	mat4 rotate_ = mat4::rotate(vec3(0,0,1), PI/4*t);
-	cam.view_matrix = mat4::translate(vec3(0, 0, -3)) * mat4::rotate(vec3(1, 0, 0), -PI / 4);
+	glUseProgram(program);
 
 	PASS_NUMBER = 1;
 	glUniform1i(glGetUniformLocation(program, "pass_n"), PASS_NUMBER);
 
-	// horizontal blur phase using render-to-texture
-	glBindFramebuffer( GL_FRAMEBUFFER, fbo );												// bind frame buffer object
-	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, SEC, 0 );	// attach texture to frame buffer object
-	glUniform1i( glGetUniformLocation( program, "TEX"), 0 );
+	//// horizontal blur phase using render-to-texture
+	//glBindFramebuffer( GL_FRAMEBUFFER, fbo );												// bind frame buffer object
+	//glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, SEC, 0 );	// attach texture to frame buffer object
+	//glUniform1i( glGetUniformLocation( program, "TEX"), 0 );
 	glBindTexture( GL_TEXTURE_2D, SRC );
 	glUniform2fv( glGetUniformLocation( program, "texel_offset" ), 1, vec2(1.0f/image_size.x, 1.0f / image_size.y) );
 	draw_quad();
 
-	PASS_NUMBER = 2;
-	glUniform1i(glGetUniformLocation(program, "pass_n"), PASS_NUMBER);
+	//PASS_NUMBER = 2;
+	//glUniform1i(glGetUniformLocation(program, "pass_n"), PASS_NUMBER);
 
-	glUniformMatrix4fv(glGetUniformLocation(program, "view"), 1, GL_TRUE, cam.view_matrix);
-	glUniformMatrix4fv(glGetUniformLocation(program, "projection"), 1, GL_TRUE, cam.projection_matrix);
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);												// bind frame buffer object
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);	// attach texture to frame buffer object
+	//glUniform1i(glGetUniformLocation(program, "TEX"), 0);
+	//glBindTexture(GL_TEXTURE_2D, SEC);
+	//glUniform2fv(glGetUniformLocation(program, "texel_offset"), 1, vec2(1.0f / image_size.x, 1.0f / image_size.y));
+	//draw_quad();
 
-	glBindFramebuffer(GL_FRAMEBUFFER, rbo);												// bind frame buffer object
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, THR, 0);	// attach texture to frame buffer object
-	glUniform1i(glGetUniformLocation(program, "TEX"), 0);
-	glBindTexture(GL_TEXTURE_2D, SEC);
-	glUniform2fv(glGetUniformLocation(program, "texel_offset"), 1, vec2(1.0f / image_size.x, 1.0f / image_size.y));
-	draw_quad();
-
-	PASS_NUMBER = 3;
-	glUniform1i(glGetUniformLocation(program, "pass_n"), PASS_NUMBER);
-
-	glUniformMatrix4fv(glGetUniformLocation(program, "rotate"), 1, GL_TRUE, rotate_);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);													// unbind frame buffer object: render to the default frame buffer
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 0, 0);						// detach texture from frame buffer object
-	glUniform1i(glGetUniformLocation(program, "TEX"), 0);
-	glBindTexture(GL_TEXTURE_2D, THR);
-	glUniform2fv(glGetUniformLocation(program, "texel_offset"), 1, vec2(1.0f / image_size.x, 1.0f / image_size.y));
-	draw_quad();
-
-	// read-back: uncomment this when you need read back the frame buffer
-	//static uchar* buffer = (uchar*) malloc( image_size.x*image_size.y*3 );
-	//glReadPixels( 0, 0, image_size.x, image_size.y, GL_RGB, GL_UNSIGNED_BYTE, buffer );
-	
-	// swap front and back buffers, and display to screen
 	glfwSwapBuffers( window );
 }
 
