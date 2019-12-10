@@ -7,6 +7,7 @@
 #include "circle.h"
 #include "wall.h"
 #include "light.h"
+#include "particle.h"
 
 #include "irrKlang\irrKlang.h"
 #pragma comment(lib, "irrKlang.lib" )
@@ -18,6 +19,7 @@ circle_t	circle;
 wall_t		wall;
 light_t		light;
 material_t	material;
+particles_t particles;
 
 float z_depth = 0.6f;
 
@@ -57,6 +59,7 @@ void game_object_init(ivec2 window_size)
 	quad.init();
 	circle.init();
 	wall.init(window_size);
+	particles.init();
 
 	//irrklang
 	engine = irrklang::createIrrKlangDevice();
@@ -122,7 +125,8 @@ struct creature_t
 
 	//model_matrix
 	mat4 model_matrix;
-	uint	mov_i;
+	uint	mov_dir;
+	enum	mov { right, left };
 
 	//attribute for games;
 	uint	index;
@@ -139,9 +143,19 @@ struct creature_t
 		for (auto& t : tex.texture)
 			if (t) glDeleteTextures(1, &t);
 		tex.load("../bin/images/creature/1.png");
+		tex.load("../bin/images/creature/2.png");
+		tex.load("../bin/images/creature/3.png");
+		tex.load("../bin/images/creature/4.png");
+		tex.load("../bin/images/creature/6.png");
+		tex.load("../bin/images/creature/7.png");
+		tex.load("../bin/images/creature/8.png");
+		tex.load("../bin/images/creature/9.png");
+		tex.load("../bin/images/creature/10.png");
+		tex.load("../bin/images/creature/11.png");
+		tex.load("../bin/images/creature/12.png");
+		tex.load("../bin/images/creature/13.png");
 
 		size = scale * vec2(1.0f, 1.0f);
-		mov_i = 0;
 	};
 
 	void update(float t)
@@ -149,6 +163,9 @@ struct creature_t
 		position += velocity / 100.0f;
 		position = vec3(position.x, position.y, min(position.z, z_depth));
 		model_matrix = mat4::translate(position) * mat4::scale(size.x, size.y, 0);
+
+		if (velocity.x < 0) mov_dir = left;
+		else if (velocity.x > 0) mov_dir = right;
 	}
 
 	void render_quad()
@@ -156,8 +173,10 @@ struct creature_t
 		float t = (float)glfwGetTime();
 
 		glUseProgram(program_object);
-		 
+
 		update(t);
+		int r = (int)(sin(t) * sin(t) * (tex.texture.size() - 3.0f));
+		int l = (int)(sin(t) * sin(t) * (tex.texture.size() - 8.0f)) + 8;
 
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "aspect_matrix"), 1, GL_TRUE, aspect_matrix);
 		glUniformMatrix4fv(glGetUniformLocation(program_object, "model_matrix"), 1, GL_TRUE, model_matrix);
@@ -165,7 +184,8 @@ struct creature_t
 		glBindBuffer(GL_ARRAY_BUFFER, quad.vertex_buffer);
 		cg_bind_vertex_attributes(program_object);
 
-		glBindTexture(GL_TEXTURE_2D, tex.texture[mov_i]);
+		if (mov_dir == left) glBindTexture(GL_TEXTURE_2D, tex.texture[l]);
+		else if (mov_dir == right) glBindTexture(GL_TEXTURE_2D, tex.texture[r]);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 		glBindTexture(GL_TEXTURE_2D, 0);
@@ -176,7 +196,7 @@ struct creature_t
 		float t = (float)glfwGetTime();
 
 		glUseProgram(program_obj_color);
-
+		
 		vec3	eye = vec3(0.0f, 0.0f, -5.0f);
 		vec3	at = vec3(0);
 		vec3	up = vec3(0, 1.0f, 0);
@@ -210,13 +230,18 @@ struct creature_t
 		glBindTexture(GL_TEXTURE_2D, 0);
 	};
 
+	void pattern()
+	{
+		vec3 position = this->position;
+		particles.update();
+		particles.render();
+	}
 };
 
 
 struct player_t
 {
 	//draw attribute
-
 	Texture	normal;
 	Texture walk;
 	Texture	attack;
@@ -314,51 +339,25 @@ struct player_t
 
 	void control_axis(int key, int action)
 	{
-		vec3 xyz_move = (0.04f);	
+		std::map<int, vec3> key_map;
+
+		const float scale = 0.04f;
+
+		key_map[GLFW_KEY_RIGHT] = vec3(scale, 0, 0);
+		key_map[GLFW_KEY_LEFT] = vec3(-scale, 0, 0);
+		key_map[GLFW_KEY_UP] = vec3(0, scale, scale);
+		key_map[GLFW_KEY_DOWN] = vec3(0, -scale, -scale);
 
 		mov_i++;
 		mov = (int)floor(mov_i/2) % walk.texture.size();
 
-		if (position.y + 0.20f > z_depth || position.z + 0.20f > z_depth) position -= vec3(0,xyz_move.y, xyz_move.z);
+		if (position.y + 0.20f > z_depth || position.z + 0.20f > z_depth) position -= vec3(0, scale, scale);
 
-		if (key == GLFW_KEY_RIGHT)
-		{
-			state = moving;
+		for (auto& map: key_map)
+			if (map.first == key) position += map.second;
+		
+		if (key == GLFW_KEY_RIGHT || key == GLFW_KEY_LEFT || key == GLFW_KEY_UP || key == GLFW_KEY_DOWN) state = moving;
 
-			position += vec3(xyz_move.x, 0, 0);
-			if (key == GLFW_KEY_UP) position += vec3(xyz_move);
-			else if (key == GLFW_KEY_DOWN) position -= vec3(xyz_move);
-		}
-		if (key == GLFW_KEY_LEFT)
-		{
-			state = moving;
-
-			position -= vec3(xyz_move.x, 0, 0);
-			if (key == GLFW_KEY_UP) position += vec3(xyz_move);
-			else if (key == GLFW_KEY_DOWN) position -= vec3(xyz_move);
-		}
-		if (key == GLFW_KEY_UP)
-		{
-			state = moving;
-
-			position += vec3(0, xyz_move.y, xyz_move.z);
-			if (key == GLFW_KEY_RIGHT) position += vec3(xyz_move.x, xyz_move.y, 0);
-			else if (key == GLFW_KEY_LEFT) position -= vec3(xyz_move.x, xyz_move.y, 0);
-		}
-		if (key == GLFW_KEY_DOWN)
-		{
-			state = moving;
-
-			position -= vec3(0, xyz_move.y, xyz_move.z);
-			if (key == GLFW_KEY_RIGHT) position += vec3(xyz_move.x, xyz_move.y, 0);
-			else if (key == GLFW_KEY_LEFT) position -= vec3(xyz_move.x, xyz_move.y, 0);
-		}
-
-	};
-
-	void control(int key, int action)
-	{
-		int previous_state = wait;
 		if (key == GLFW_KEY_Z)
 		{
 			if (action == GLFW_PRESS)
@@ -373,7 +372,7 @@ struct player_t
 				this->hit_on = 0;
 			}
 		}
-	}
+	};
 };
 
 

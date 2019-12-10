@@ -9,7 +9,6 @@ void text_init();
 void render_text(std::string text, GLint x, GLint y, GLfloat scale, vec4 color);
 void render_text(std::string text, GLint x, GLint y, GLfloat scale, vec4 color, float t, GLFWwindow* window);
 
-
 //*******************************************************************
 // global constants
 static const char* window_name = "CG invader";
@@ -28,7 +27,6 @@ GLuint	program = 0;	// ID holder for GPU program
 GLuint	vertex_buffer = 0;	// ID holder for vertex buffer
 GLuint	SRC = 0;
 
-
 //*******************************************************************
 // global variables
 int		frame = 0;						// index of rendering frames
@@ -40,12 +38,14 @@ float	timer;
 // game_menu
 background_t	menu_background_image;
 
+
 enum game_stage
 {
 	GAME_MENU,
 	GAME_STAGE0,
 	GAME_STAGE01,
 	GAME_STAGE1,
+	GAME_STAGE2,
 	GAME_OVER,
 	GAME_WIN
 };
@@ -57,7 +57,9 @@ game_stage	stage;
 player_t	player;
 player_t	win_player;
 player_t	fail_player;
-std::vector<creature_t>	creatures;
+std::vector<creature_t>	bubbles;
+std::vector<creature_t>	sharks;
+std::vector<particles_t> fire;
 
 bool user_init()
 {
@@ -83,6 +85,12 @@ bool user_init()
 	player.init();	//for real play
 	win_player.init();	//for win screen
 	fail_player.init();	//for game over screen
+
+	//creatures
+
+	//particles
+	fire.resize(3);
+	for (auto& f : fire) f.init();
 
 	return true;
 }
@@ -157,25 +165,54 @@ void stage1_render()
 	float t = timer - (float)glfwGetTime();
 
 	std::string time = std::to_string(t);
-	std::string remain = std::to_string(creatures.size());
+	std::string remain = std::to_string(bubbles.size());
 
 	render_text("limit: "+ time, 100, 50, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
 	render_text("remain: " + remain, 100, 80, 0.5f, vec4(1.0f, 1.0f, 1.0f, 0.8f));
 
 	background.render();
 
-	for (auto& c : creatures)
+	for (auto& b : bubbles)
 	{
-		c.update(t);
-		wall_collision(c, wall);
-		object_collision(c, creatures);
-		c.render_circle();
+		b.update(t);
+		wall_collision(b, wall);
+		object_collision(b, bubbles);
+		b.render_circle();
 	}
 
 	player.render(t);
 
 	if (t < 0) stage = GAME_OVER;
-	if (change_state(player, creatures)) { stage = GAME_WIN; score = t; }
+	if (change_state(player, bubbles)) { stage = GAME_WIN; score = t; }
+
+	glfwSwapBuffers(window);
+}
+
+void stage2_render()
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	float t = timer - (float)glfwGetTime();
+	float s = (float)sin(t);
+
+
+	for (auto& s : sharks)
+	{
+		wall_collision(s, wall);
+		object_collision(s, sharks);
+		s.render_quad();
+	}
+
+	for (auto& f : fire)
+	{
+		tracking_player(f, player, t);
+		f.update();
+		f.render();
+	}
+
+	player.render(t);
+
+	if (change_state(player, sharks)) { return; }
 
 	glfwSwapBuffers(window);
 }
@@ -229,7 +266,6 @@ void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 	if (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_Q)	glfwSetWindowShouldClose(window, GL_TRUE);
 	else if (key == GLFW_KEY_H || key == GLFW_KEY_F1) {}
 	
-	player.control(key, action);
 	player.control_axis(key, action);
 	
 	if (action == GLFW_PRESS)
@@ -264,7 +300,6 @@ void mouse(GLFWwindow* window, int button, int action, int mods)
 void motion(GLFWwindow* window, double x, double y)
 {
 }
-
 
 void user_finalize()
 {
@@ -320,8 +355,8 @@ int main(int argc, char* argv[])
 			}
 			break;
 		case GAME_STAGE1:
-			creatures = create_creatures(20, 0.2f);
-			timer = (float)glfwGetTime() + 45.0f;
+			bubbles = create_creatures(20, 0.2f);
+			timer = (float)glfwGetTime() + 35.0f;
 			for (frame = 0; !glfwWindowShouldClose(window); frame++)
 			{
 				glfwPollEvents();
@@ -329,7 +364,18 @@ int main(int argc, char* argv[])
 				stage1_render();
 				if (stage != GAME_STAGE1) goto top;
 			}
-			break;;
+			break;
+		/*case GAME_STAGE2:
+			timer = (float)glfwGetTime() + 45.0f;
+			sharks = create_creatures(20, 0.2f);
+			for (frame = 0; !glfwWindowShouldClose(window); frame++)
+			{
+				glfwPollEvents();
+				update();
+				stage2_render();
+				if (stage != GAME_STAGE2) goto top;
+			}
+			break;*/
 		case GAME_OVER:
 			for (frame = 0; !glfwWindowShouldClose(window); frame++)
 			{

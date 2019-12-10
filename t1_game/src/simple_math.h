@@ -41,6 +41,14 @@ inline bool check_collision(player_t& p, creature_t& c) // AABB - AABB collision
 	return x_axis_collision && y_axis_collision;
 }
 
+inline bool check_collision(player_t& p, particles_t& c) // AABB - AABB collision
+{
+	bool x_axis_collision = p.position.x + p.size.x >= c.position.x && c.position.x + c.size.x >= p.position.x;
+	bool y_axis_collision = p.position.y + p.size.y >= c.position.y && c.position.y + c.size.y >= p.position.y;
+
+	return x_axis_collision && y_axis_collision;
+}
+
 
 
 #endif

@@ -61,14 +61,17 @@
     <ClInclude Include="game_level.h">
       <Filter>Source Files\intermediate</Filter>
     </ClInclude>
-    <ClInclude Include="simple_math.h">
-      <Filter>Source Files\main</Filter>
-    </ClInclude>
     <ClInclude Include="state_render.h">
       <Filter>Source Files\main</Filter>
     </ClInclude>
     <ClInclude Include="stb_image.h">
       <Filter>Source Files\main</Filter>
+    </ClInclude>
+    <ClInclude Include="particle.h">
+      <Filter>Source Files\primitives</Filter>
+    </ClInclude>
+    <ClInclude Include="simple_math.h">
+      <Filter>Source Files\intermediate</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -88,6 +91,12 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\bin\shaders\text.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\bin\shaders\particle.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\bin\shaders\particle.vert">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

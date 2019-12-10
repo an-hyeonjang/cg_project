@@ -101,4 +101,33 @@ inline std::vector<creature_t> create_creatures(uint size, float max_scale)
 	return creatures;
 }
 
+void tracking_player(creature_t& c, player_t& p, float t)
+{
+	float timer = 0.0f;
+	vec3 temp_pos = p.position;
+	if (t > 20.0f)
+	{
+		c.position += temp_pos / 10.0f;
+		if (c.position == temp_pos) return;
+	}
+}
+
+void tracking_player(particles_t& ptc, player_t& p, float t)
+{
+	float timer = 0.0f;
+	vec3 temp_pos;
+
+	float s = sin(t) * 10;
+
+	temp_pos = p.position;
+	if (s > 6.5f && s < 8.0f)
+	{
+		if (ptc.position.x == temp_pos.x) return;
+		ptc.position.x += temp_pos.x/20.0f;//temp_pos / 10.0f;
+		ptc.position.y += temp_pos.y/20.0f;
+		
+	}
+	return;
+}
+
 #endif
